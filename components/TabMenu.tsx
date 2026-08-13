@@ -11,21 +11,28 @@ export interface TabMenuProps {
   }
   historyContent: string
   onRequestInfo: () => void
+  onTabChange?: (tab: 'contact' | 'history' | 'request') => void
 }
 
 export default function TabMenu({
   contactInfo,
   historyContent,
   onRequestInfo,
+  onTabChange,
 }: TabMenuProps) {
   const [activeTab, setActiveTab] = useState<'contact' | 'history' | 'request'>('contact')
+
+  const handleTabClick = (tab: 'contact' | 'history' | 'request') => {
+    setActiveTab(tab)
+    onTabChange?.(tab)
+  }
 
   return (
     <div className="flex flex-col h-full bg-white">
       {/* Tab Headers */}
       <div className="flex border-b">
         <button
-          onClick={() => setActiveTab('contact')}
+          onClick={() => handleTabClick('contact')}
           className={`tab-button flex-1 text-center py-4 ${
             activeTab === 'contact' ? 'active' : ''
           }`}
@@ -33,7 +40,7 @@ export default function TabMenu({
           Contact
         </button>
         <button
-          onClick={() => setActiveTab('history')}
+          onClick={() => handleTabClick('history')}
           className={`tab-button flex-1 text-center py-4 ${
             activeTab === 'history' ? 'active' : ''
           }`}
@@ -41,7 +48,7 @@ export default function TabMenu({
           History
         </button>
         <button
-          onClick={() => setActiveTab('request')}
+          onClick={() => handleTabClick('request')}
           className={`tab-button flex-1 text-center py-4 ${
             activeTab === 'request' ? 'active' : ''
           }`}

@@ -6,8 +6,8 @@ import PhotoCarousel, { Photo } from '@/components/PhotoCarousel'
 import TabMenu from '@/components/TabMenu'
 import FloatingCTA from '@/components/FloatingCTA'
 
-// Project photos from SchrammScape portfolio
-const PLACEHOLDER_PHOTOS: Photo[] = [
+// Showcase photos from project portfolio
+const SHOWCASE_PHOTOS: Photo[] = [
   {
     id: '1',
     src: '/images/showcase/1BEA1724-7577-4A1D-83F9-38EDB3ABE756_1_105_c.jpeg',
@@ -34,6 +34,22 @@ const PLACEHOLDER_PHOTOS: Photo[] = [
   },
 ]
 
+// Tyler bio photos
+const BIO_PHOTOS: Photo[] = [
+  {
+    id: 'bio-1',
+    src: '/images/bio/369919B7-D6CB-4F37-A063-1F72B4C705EA_1_105_c.jpeg',
+    alt: 'Tyler Schramm',
+    category: 'Tyler',
+  },
+  {
+    id: 'bio-2',
+    src: '/images/bio/EDEC9B63-0AC3-4B36-8CCC-B0CF536D4D84_1_105_c.jpeg',
+    alt: 'Tyler Schramm',
+    category: 'Tyler',
+  },
+]
+
 const CONTACT_INFO = {
   phone: '(937) 602-1945',
   email: 'contact@schrammscape.com',
@@ -53,6 +69,7 @@ I intend to use this business as a way to pay for college and further my educati
 
 export default function Home() {
   const tabMenuRef = useRef<HTMLDivElement>(null)
+  const [currentPhotos, setCurrentPhotos] = useState<Photo[]>(SHOWCASE_PHOTOS)
 
   const handleCTAClick = () => {
     // Scroll to Request Info tab
@@ -60,6 +77,14 @@ export default function Home() {
     if (requestButton) {
       requestButton.click()
       tabMenuRef.current?.scrollIntoView({ behavior: 'smooth' })
+    }
+  }
+
+  const handleTabChange = (tab: 'contact' | 'history' | 'request') => {
+    if (tab === 'history') {
+      setCurrentPhotos(BIO_PHOTOS)
+    } else {
+      setCurrentPhotos(SHOWCASE_PHOTOS)
     }
   }
 
@@ -95,7 +120,7 @@ export default function Home() {
         <div className="hidden md:grid md:grid-cols-2 gap-0 min-h-screen">
           {/* Left: Photo Carousel */}
           <div className="border-r">
-            <PhotoCarousel photos={PLACEHOLDER_PHOTOS} />
+            <PhotoCarousel photos={currentPhotos} />
           </div>
 
           {/* Right: Tab Menu */}
@@ -104,6 +129,7 @@ export default function Home() {
               contactInfo={CONTACT_INFO}
               historyContent={HISTORY_CONTENT}
               onRequestInfo={handleRequestInfo}
+              onTabChange={handleTabChange}
             />
           </div>
         </div>
@@ -112,7 +138,7 @@ export default function Home() {
         <div className="md:hidden flex flex-col">
           {/* Photo Carousel */}
           <div className="h-96">
-            <PhotoCarousel photos={PLACEHOLDER_PHOTOS} />
+            <PhotoCarousel photos={currentPhotos} />
           </div>
 
           {/* Tab Menu */}
@@ -121,6 +147,7 @@ export default function Home() {
               contactInfo={CONTACT_INFO}
               historyContent={HISTORY_CONTENT}
               onRequestInfo={handleRequestInfo}
+              onTabChange={handleTabChange}
             />
           </div>
         </div>
