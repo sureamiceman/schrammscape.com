@@ -38,7 +38,7 @@ export default function PhotoCarousel({ photos }: PhotoCarouselProps) {
   }, [currentIndex])
 
   return (
-    <div className="w-full h-full flex flex-col">
+    <div className="w-full h-full flex flex-col overflow-hidden">
       {/* Photo Display */}
       <div className="relative flex-1 bg-gray-100 overflow-hidden">
         {current.isBeforeAfter && isBeforeAfterMode ? (
@@ -50,6 +50,7 @@ export default function PhotoCarousel({ photos }: PhotoCarouselProps) {
             fill
             className="object-cover"
             priority
+            sizes="(max-width: 768px) 100vw, 50vw"
           />
         )}
 
@@ -70,21 +71,21 @@ export default function PhotoCarousel({ photos }: PhotoCarouselProps) {
       </div>
 
       {/* Navigation */}
-      <div className="flex items-center justify-between px-4 py-4 bg-white border-t">
+      <div className="flex items-center justify-between px-3 py-3 bg-white border-t flex-shrink-0">
         <button
           onClick={handlePrev}
-          className="w-10 h-10 rounded-full border border-gray-300 flex items-center justify-center hover:bg-gray-100 transition"
+          className="w-8 h-8 rounded-full border border-gray-300 flex items-center justify-center hover:bg-gray-100 transition text-sm"
         >
           ‹
         </button>
 
-        <div className="text-sm text-gray-600">
+        <div className="text-xs text-gray-600">
           {currentIndex + 1} / {photos.length}
         </div>
 
         <button
           onClick={handleNext}
-          className="w-10 h-10 rounded-full border border-gray-300 flex items-center justify-center hover:bg-gray-100 transition"
+          className="w-8 h-8 rounded-full border border-gray-300 flex items-center justify-center hover:bg-gray-100 transition text-sm"
         >
           ›
         </button>

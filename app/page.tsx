@@ -93,12 +93,12 @@ export default function Home() {
   }
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="flex flex-col h-screen bg-white overflow-hidden">
       {/* Header */}
-      <header className="border-b sticky top-0 z-40 bg-white">
-        <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
+      <header className="border-b flex-shrink-0 bg-white">
+        <div className="px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-14 h-14 relative">
+            <div className="w-12 h-12 relative">
               <Image
                 src="/images/logo/0F32A119-F791-4906-A7E3-0A8E1614216B_1_105_c.jpeg"
                 alt="SchrammScape Logo"
@@ -107,7 +107,7 @@ export default function Home() {
               />
             </div>
             <div>
-              <h1 className="text-2xl font-bold" style={{ color: 'var(--hunter)' }}>SchrammScape</h1>
+              <h1 className="text-xl font-bold" style={{ color: 'var(--hunter)' }}>SchrammScape</h1>
               <p className="text-xs" style={{ color: 'var(--grey-medium)' }}>Lawn Care & Landscaping</p>
             </div>
           </div>
@@ -115,16 +115,16 @@ export default function Home() {
       </header>
 
       {/* Main Content */}
-      <main className="max-w-7xl mx-auto">
+      <main className="flex-1 overflow-hidden">
         {/* Desktop Layout (side-by-side) */}
-        <div className="hidden md:grid md:grid-cols-2 gap-0 min-h-screen">
+        <div className="hidden md:grid md:grid-cols-2 gap-0 h-full">
           {/* Left: Photo Carousel */}
-          <div className="border-r">
+          <div className="border-r overflow-hidden">
             <PhotoCarousel photos={currentPhotos} />
           </div>
 
           {/* Right: Tab Menu */}
-          <div ref={tabMenuRef}>
+          <div ref={tabMenuRef} className="overflow-hidden">
             <TabMenu
               contactInfo={CONTACT_INFO}
               historyContent={HISTORY_CONTENT}
@@ -135,14 +135,14 @@ export default function Home() {
         </div>
 
         {/* Mobile Layout (stacked) */}
-        <div className="md:hidden flex flex-col">
-          {/* Photo Carousel */}
-          <div className="h-96">
+        <div className="md:hidden flex flex-col h-full">
+          {/* Photo Carousel - 45% of viewport */}
+          <div className="flex-shrink-0" style={{ height: '45%' }}>
             <PhotoCarousel photos={currentPhotos} />
           </div>
 
-          {/* Tab Menu */}
-          <div ref={tabMenuRef} className="flex-1">
+          {/* Tab Menu - 55% of viewport */}
+          <div ref={tabMenuRef} className="flex-1 overflow-hidden">
             <TabMenu
               contactInfo={CONTACT_INFO}
               historyContent={HISTORY_CONTENT}

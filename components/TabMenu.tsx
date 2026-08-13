@@ -28,12 +28,12 @@ export default function TabMenu({
   }
 
   return (
-    <div className="flex flex-col h-full bg-white">
+    <div className="flex flex-col h-full bg-white overflow-hidden">
       {/* Tab Headers */}
-      <div className="flex border-b">
+      <div className="flex border-b flex-shrink-0">
         <button
           onClick={() => handleTabClick('contact')}
-          className={`tab-button flex-1 text-center py-4 ${
+          className={`tab-button flex-1 text-center py-3 ${
             activeTab === 'contact' ? 'active' : ''
           }`}
         >
@@ -41,7 +41,7 @@ export default function TabMenu({
         </button>
         <button
           onClick={() => handleTabClick('history')}
-          className={`tab-button flex-1 text-center py-4 ${
+          className={`tab-button flex-1 text-center py-3 ${
             activeTab === 'history' ? 'active' : ''
           }`}
         >
@@ -49,7 +49,7 @@ export default function TabMenu({
         </button>
         <button
           onClick={() => handleTabClick('request')}
-          className={`tab-button flex-1 text-center py-4 ${
+          className={`tab-button flex-1 text-center py-3 ${
             activeTab === 'request' ? 'active' : ''
           }`}
         >
@@ -58,7 +58,7 @@ export default function TabMenu({
       </div>
 
       {/* Tab Content */}
-      <div className="flex-1 overflow-y-auto p-6">
+      <div className="flex-1 overflow-y-auto p-4 md:p-6">
         {activeTab === 'contact' && (
           <div className="space-y-6">
             <div>
