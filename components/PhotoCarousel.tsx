@@ -26,10 +26,6 @@ export default function PhotoCarousel({ photos }: PhotoCarouselProps) {
     setIsBeforeAfterMode(false)
   }, [photos])
 
-  const current = photos[currentIndex]
-
-  if (!current) return null
-
   const handleNext = () => {
     setCurrentIndex((prev) => (prev + 1) % photos.length)
     setIsBeforeAfterMode(false)
@@ -44,6 +40,10 @@ export default function PhotoCarousel({ photos }: PhotoCarouselProps) {
     const timer = setTimeout(handleNext, 8000)
     return () => clearTimeout(timer)
   }, [currentIndex])
+
+  const current = photos[currentIndex]
+
+  if (!current) return null
 
   return (
     <div className="w-full h-full flex flex-col overflow-hidden">
