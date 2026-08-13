@@ -6,53 +6,50 @@ import PhotoCarousel, { Photo } from '@/components/PhotoCarousel'
 import TabMenu from '@/components/TabMenu'
 import FloatingCTA from '@/components/FloatingCTA'
 
-// Placeholder photos - replace with actual images
+// Project photos from SchrammScape portfolio
 const PLACEHOLDER_PHOTOS: Photo[] = [
   {
     id: '1',
-    src: 'https://images.unsplash.com/photo-1585580914654-e904ae5ac53d?w=800&h=600&fit=crop',
-    alt: 'Lawn mowing service',
-    category: 'Landscaping',
-    isBeforeAfter: true,
-    afterSrc: 'https://images.unsplash.com/photo-1585580914662-e904ae5ac63e?w=800&h=600&fit=crop',
+    src: '/images/showcase/1BEA1724-7577-4A1D-83F9-38EDB3ABE756_1_105_c.jpeg',
+    alt: 'Lawn care project',
+    category: 'Lawn Care',
   },
   {
     id: '2',
-    src: 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=800&h=600&fit=crop',
-    alt: 'Garden landscaping',
-    category: 'Landscaping',
+    src: '/images/showcase/2280A7E4-3B6B-4BAA-AAE1-567151B7C69C_4_5005_c.jpeg',
+    alt: 'Lawn care project',
+    category: 'Lawn Care',
   },
   {
     id: '3',
-    src: 'https://images.unsplash.com/photo-1574009691717-5dcf2dd1c6a7?w=800&h=600&fit=crop',
-    alt: 'Hardscape installation',
-    category: 'Hardscaping',
+    src: '/images/showcase/E8DC7A4A-EDDE-4BDD-86BC-22C4A5988E0E_1_105_c.jpeg',
+    alt: 'Lawn care project',
+    category: 'Lawn Care',
   },
   {
     id: '4',
-    src: 'https://images.unsplash.com/photo-1576839586733-c98ba3e42f9d?w=800&h=600&fit=crop',
-    alt: 'Garden maintenance',
-    category: 'Maintenance',
+    src: '/images/showcase/EABCE0E1-1EE2-4951-A6A2-EAC41EAF6868_4_5005_c.jpeg',
+    alt: 'Lawn care project',
+    category: 'Lawn Care',
   },
 ]
 
 const CONTACT_INFO = {
-  phone: '(555) 123-4567',
+  phone: '(937) 602-1945',
   email: 'contact@schrammscape.com',
-  location: 'Serving the local community',
+  location: 'Troy and Tipp City, Ohio (45373 & 45371)',
   socials: [
-    { name: 'Facebook', url: 'https://facebook.com' },
-    { name: 'Instagram', url: 'https://instagram.com' },
+    { name: 'Facebook', url: '#' },
   ],
 }
 
-const HISTORY_CONTENT = `Started at just 14 years old with a push mower and an ambition to work, SchrammScape Lawncare has grown from a side hustle into a thriving local business.
+const HISTORY_CONTENT = `My name is Tyler Schramm. My parents and numerous friends have helped me start SchrammScape Lawn Care and Landscaping Services. I like to say that I'm "Rooted in Faith, Committed to Excellence."
 
-While putting myself through college, I discovered a passion for creating beautiful outdoor spaces. Every job was an opportunity to learn, improve, and build relationships with my community.
+I believe in hard work and doing that work well. I started mowing for neighbors at 14 years old. I've built on that foundation and improved and increased in my capabilities and understanding.
 
-Today, SchrammScape Lawncare is known for attention to detail, reliability, and a genuine care for every property we service. From basic lawn maintenance to complete landscape transformations, we bring the same work ethic and enthusiasm that started it all.
+I'm ready to serve the Troy and Tipp communities by providing reliable, quality lawn care. Whether you need regular care, vacation coverage, or help catching up on lawn care and landscaping projects, I'm here to help.
 
-This isn't just a business—it's a testament to hard work, persistence, and the belief that great things grow from small beginnings.`
+I intend to use this business as a way to pay for college and further my education in Business Finance.`
 
 export default function Home() {
   const tabMenuRef = useRef<HTMLDivElement>(null)
@@ -75,16 +72,18 @@ export default function Home() {
       {/* Header */}
       <header className="border-b sticky top-0 z-40 bg-white">
         <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="w-12 h-12 relative">
-              {/* Logo placeholder - replace with actual logo */}
-              <div className="w-full h-full bg-grass rounded-full flex items-center justify-center text-white font-bold text-sm">
-                S
-              </div>
+          <div className="flex items-center gap-3">
+            <div className="w-14 h-14 relative">
+              <Image
+                src="/images/logo/0F32A119-F791-4906-A7E3-0A8E1614216B_1_105_c.jpeg"
+                alt="SchrammScape Logo"
+                fill
+                className="object-contain"
+              />
             </div>
             <div>
-              <h1 className="text-xl font-bold text-grass">SchrammScape</h1>
-              <p className="text-xs text-gray-600">Lawncare</p>
+              <h1 className="text-2xl font-bold text-grass">SchrammScape</h1>
+              <p className="text-xs text-gray-600">Lawn Care & Landscaping</p>
             </div>
           </div>
         </div>
