@@ -53,7 +53,7 @@ const BIO_PHOTOS: Photo[] = [
 const CONTACT_INFO = {
   phone: '(937) 602-1945',
   email: 'schrammscape@gmail.com',
-  location: 'Troy and Tipp City, Ohio (45373 & 45371)',
+  location: 'Serving the Troy and Tipp City Communities of Ohio',
   socials: [
     { name: 'Facebook', url: '#' },
   ],
