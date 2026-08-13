@@ -52,7 +52,7 @@ const BIO_PHOTOS: Photo[] = [
 
 const CONTACT_INFO = {
   phone: '(937) 602-1945',
-  email: 'contact@schrammscape.com',
+  email: 'schrammscape@gmail.com',
   location: 'Troy and Tipp City, Ohio (45373 & 45371)',
   socials: [
     { name: 'Facebook', url: '#' },
@@ -107,8 +107,8 @@ export default function Home() {
               />
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-grass">SchrammScape</h1>
-              <p className="text-xs text-gray-600">Lawn Care & Landscaping</p>
+              <h1 className="text-2xl font-bold" style={{ color: 'var(--hunter)' }}>SchrammScape</h1>
+              <p className="text-xs" style={{ color: 'var(--grey-medium)' }}>Lawn Care & Landscaping</p>
             </div>
           </div>
         </div>

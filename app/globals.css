@@ -2,6 +2,16 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  --hunter: #355e3b;
+  --hunter-light: #4a7361;
+  --hunter-dark: #2d4f32;
+  --grey-light: #e8e8e8;
+  --grey-medium: #d3d3d3;
+  --black: #1a1a1a;
+  --white: #ffffff;
+}
+
 * {
   margin: 0;
   padding: 0;
@@ -13,15 +23,15 @@ html {
 }
 
 body {
-  background-color: #ffffff;
-  color: #1a1a1a;
+  background-color: var(--white);
+  color: var(--black);
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
 }
 
 @media (prefers-color-scheme: dark) {
   body {
     background-color: #0f0f0f;
-    color: #ffffff;
+    color: var(--white);
   }
 }
 
@@ -36,7 +46,8 @@ body {
 }
 
 .category-badge {
-  @apply absolute top-3 left-3 bg-grass text-white px-3 py-1 rounded text-sm font-semibold z-10;
+  @apply absolute top-3 left-3 text-white px-3 py-1 rounded text-sm font-semibold z-10;
+  background-color: var(--hunter);
 }
 
 /* Tab styling */
@@ -45,7 +56,8 @@ body {
 }
 
 .tab-button.active {
-  @apply border-b-2 border-grass text-grass;
+  border-bottom: 2px solid var(--hunter);
+  color: var(--hunter);
 }
 
 .tab-button:not(.active) {
@@ -54,7 +66,12 @@ body {
 
 /* Floating CTA */
 .floating-cta {
-  @apply fixed bottom-6 right-6 w-16 h-16 bg-grass text-white rounded-full flex items-center justify-center cursor-pointer shadow-lg hover:shadow-xl transition-shadow z-50;
+  @apply fixed bottom-6 right-6 w-16 h-16 text-white rounded-full flex items-center justify-center cursor-pointer shadow-lg hover:shadow-xl transition-shadow z-50;
+  background-color: var(--hunter);
+}
+
+.floating-cta:hover {
+  background-color: var(--hunter-dark);
 }
 
 @media (max-width: 768px) {

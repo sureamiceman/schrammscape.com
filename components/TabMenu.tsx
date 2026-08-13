@@ -62,14 +62,15 @@ export default function TabMenu({
         {activeTab === 'contact' && (
           <div className="space-y-6">
             <div>
-              <h3 className="text-lg font-semibold mb-4 text-grass">Get in Touch</h3>
+              <h3 className="text-lg font-semibold mb-4" style={{ color: 'var(--hunter)' }}>Get in Touch</h3>
 
               <div className="space-y-4">
                 <div>
                   <p className="text-sm text-gray-600 mb-1">Phone</p>
                   <a
                     href={`tel:${contactInfo.phone}`}
-                    className="text-lg font-medium text-grass hover:underline"
+                    className="text-lg font-medium hover:underline"
+                    style={{ color: 'var(--hunter)' }}
                   >
                     {contactInfo.phone}
                   </a>
@@ -79,7 +80,8 @@ export default function TabMenu({
                   <p className="text-sm text-gray-600 mb-1">Email</p>
                   <a
                     href={`mailto:${contactInfo.email}`}
-                    className="text-lg font-medium text-grass hover:underline"
+                    className="text-lg font-medium hover:underline"
+                    style={{ color: 'var(--hunter)' }}
                   >
                     {contactInfo.email}
                   </a>
@@ -101,7 +103,8 @@ export default function TabMenu({
                         href={social.url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-grass hover:text-sage font-medium text-sm"
+                        className="font-medium text-sm hover:underline"
+                        style={{ color: 'var(--hunter)' }}
                       >
                         {social.name}
                       </a>
@@ -115,7 +118,7 @@ export default function TabMenu({
 
         {activeTab === 'history' && (
           <div>
-            <h3 className="text-lg font-semibold mb-4 text-grass">Our Story</h3>
+            <h3 className="text-lg font-semibold mb-4" style={{ color: 'var(--hunter)' }}>Our Story</h3>
             <div className="prose prose-sm max-w-none text-gray-700 space-y-3">
               {historyContent.split('\n').map((paragraph, idx) => (
                 paragraph.trim() && <p key={idx}>{paragraph}</p>
@@ -126,7 +129,7 @@ export default function TabMenu({
 
         {activeTab === 'request' && (
           <div>
-            <h3 className="text-lg font-semibold mb-4 text-grass">Request Information</h3>
+            <h3 className="text-lg font-semibold mb-4" style={{ color: 'var(--hunter)' }}>Request Information</h3>
             <RequestForm onSubmit={onRequestInfo} />
           </div>
         )}
@@ -165,7 +168,8 @@ function RequestForm({ onSubmit }: RequestFormProps) {
           required
           value={formData.name}
           onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-grass focus:border-transparent outline-none"
+          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:border-transparent outline-none"
+          style={{ '--tw-ring-color': 'var(--hunter)' } as any}
         />
       </div>
 
@@ -178,7 +182,8 @@ function RequestForm({ onSubmit }: RequestFormProps) {
           required
           value={formData.email}
           onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-grass focus:border-transparent outline-none"
+          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:border-transparent outline-none"
+          style={{ '--tw-ring-color': 'var(--hunter)' } as any}
         />
       </div>
 
@@ -190,7 +195,8 @@ function RequestForm({ onSubmit }: RequestFormProps) {
           type="tel"
           value={formData.phone}
           onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-grass focus:border-transparent outline-none"
+          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:border-transparent outline-none"
+          style={{ '--tw-ring-color': 'var(--hunter)' } as any}
         />
       </div>
 
@@ -208,7 +214,10 @@ function RequestForm({ onSubmit }: RequestFormProps) {
 
       <button
         type="submit"
-        className="w-full bg-grass text-white font-medium py-2 rounded-lg hover:bg-sage transition"
+        className="w-full text-white font-medium py-2 rounded-lg transition"
+        style={{ backgroundColor: 'var(--hunter)' }}
+        onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--hunter-dark)'}
+        onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'var(--hunter)'}
       >
         Send Request
       </button>
