@@ -20,7 +20,15 @@ export default function PhotoCarousel({ photos }: PhotoCarouselProps) {
   const [currentIndex, setCurrentIndex] = useState(0)
   const [isBeforeAfterMode, setIsBeforeAfterMode] = useState(false)
 
+  // Reset carousel when photos array changes
+  useEffect(() => {
+    setCurrentIndex(0)
+    setIsBeforeAfterMode(false)
+  }, [photos])
+
   const current = photos[currentIndex]
+
+  if (!current) return null
 
   const handleNext = () => {
     setCurrentIndex((prev) => (prev + 1) % photos.length)
