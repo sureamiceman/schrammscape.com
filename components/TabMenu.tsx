@@ -88,8 +88,10 @@ export default function TabMenu({
                 </div>
 
                 <div>
-                  <p className="text-sm text-gray-600 mb-1">Location</p>
-                  <p className="text-base font-medium">{contactInfo.location}</p>
+                  <p className="text-sm text-gray-600 mb-1">Service Area</p>
+                  <p className="text-base font-medium" style={{ color: 'var(--hunter)' }}>
+                    {contactInfo.location}
+                  </p>
                 </div>
               </div>
 
