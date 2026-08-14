@@ -55,7 +55,7 @@ const CONTACT_INFO = {
   email: 'schrammscape@gmail.com',
   location: 'Serving the Troy and Tipp City Communities of Ohio',
   socials: [
-    { name: 'Facebook', url: '#' },
+    { name: 'Facebook', url: 'https://www.facebook.com/profile.php?id=61587762076174' },
   ],
 }
 
