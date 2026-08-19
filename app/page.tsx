@@ -92,6 +92,20 @@ const SHOWCASE_PHOTOS: Photo[] = [
     isBeforeAfter: true,
     afterSrc: '/images/showcase/flowerbed-after.jpeg',
   },
+  {
+    id: 'sidewalk-2',
+    src: '/images/showcase/sidewalk_2_before.jpg',
+    alt: 'Sidewalk edging project',
+    category: 'Edging',
+    isBeforeAfter: true,
+    afterSrc: '/images/showcase/sidewalk_2_after.jpg',
+  },
+  {
+    id: 'lines3',
+    src: '/images/showcase/lines_3.jpg',
+    alt: 'Lawn care project',
+    category: 'Lawn Care',
+  },
 ]
 
 // -----------------------------------------------------------------------
@@ -112,6 +126,12 @@ const BIO_PHOTOS: Photo[] = [
     id: 'bio-2',
     src: '/images/bio/EDEC9B63-0AC3-4B36-8CCC-B0CF536D4D84_1_105_c.jpeg',
     alt: 'Tyler Schramm',
+    category: 'Tyler',
+  },
+  {
+    id: 'bio3',
+    src: '/images/bio/Schramm_approved.jpg',
+    alt: 'Schramm-approved!',
     category: 'Tyler',
   },
 ]
