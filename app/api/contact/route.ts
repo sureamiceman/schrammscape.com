@@ -56,10 +56,8 @@ const RECIPIENT_EMAIL = 'schrammscape@gmail.com'
 // The exact subject line requested for every submission email.
 const EMAIL_SUBJECT = 'NEW Contact form from schrammscape.com!!'
 
-// The "from" address Resend sends as. See SETUP NOTES above about
-// switching this to a verified schrammscape.com address later.
-const EMAIL_FROM = 'SchrammScape Website <onboarding@resend.dev>'
-
+// The "from" address Resend sends as. Domain is now verified in Resend.
+const EMAIL_FROM = 'SchrammScape Website <noreply@schrammscape.com>'
 // -----------------------------------------------------------------------
 // POST /api/contact
 // -----------------------------------------------------------------------
