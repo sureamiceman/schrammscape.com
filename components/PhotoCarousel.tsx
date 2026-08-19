@@ -8,8 +8,8 @@
 //     - Left/right arrow buttons and a "2 / 5" counter to navigate manually
 //     - Automatic advancing to the next photo every 8 seconds
 //     - A special "Before/After" mode for photo pairs (like a flowerbed
-//       before it was landscaped vs. after) — visitors can drag/slide to
-//       compare the two images
+//       before it was landscaped vs. after) — visitors can tap the image
+//       to toggle between before and after photos
 //
 // DEPENDS ON:
 //   - The "photos" list passed in by whichever page uses it. Right now that
@@ -69,9 +69,11 @@ interface PhotoCarouselProps {
 export default function PhotoCarousel({ photos }: PhotoCarouselProps) {
   // Which photo in the list is currently being shown (0 = first photo).
   const [currentIndex, setCurrentIndex] = useState(0)
-  // Whether the before/after comparison slider is currently active for the
-  // photo being shown (only relevant when that photo has isBeforeAfter: true).
+  // Whether the before/after comparison mode is active for the photo being shown
+  // (only relevant when that photo has isBeforeAfter: true).
   const [isBeforeAfterMode, setIsBeforeAfterMode] = useState(false)
+  // Which image is shown in before/after mode: true = after, false = before
+  const [showAfter, setShowAfter] = useState(false)
 
   // -----------------------------------------------------------------
   // Reset to the first photo whenever the photo LIST itself changes.
@@ -83,6 +85,7 @@ export default function PhotoCarousel({ photos }: PhotoCarouselProps) {
   useEffect(() => {
     setCurrentIndex(0)
     setIsBeforeAfterMode(false)
+    setShowAfter(false)
   }, [photos])
 
   // Advances to the next photo, wrapping back to the start after the last one.
@@ -120,9 +123,23 @@ export default function PhotoCarousel({ photos }: PhotoCarouselProps) {
           Shows either a normal photo, or (if the current photo supports
           it and the visitor has toggled it on) the before/after slider.
       ================================================================= */}
-      <div className="relative flex-1 bg-gray-100 overflow-hidden">
+      <div
+        className="relative flex-1 bg-gray-100 overflow-hidden cursor-pointer"
+        onClick={() => {
+          if (current.isBeforeAfter && isBeforeAfterMode) {
+            setShowAfter(!showAfter)
+          }
+        }}
+      >
         {current.isBeforeAfter && isBeforeAfterMode ? (
-          <BeforeAfterSlider before={current.src} after={current.afterSrc || ''} />
+          <Image
+            src={showAfter ? current.afterSrc || '' : current.src}
+            alt={showAfter ? 'After' : 'Before'}
+            fill
+            className="object-cover"
+            priority
+            sizes="(max-width: 768px) 100vw, 50vw"
+          />
         ) : (
           <Image
             src={current.src}
@@ -142,15 +159,26 @@ export default function PhotoCarousel({ photos }: PhotoCarouselProps) {
         </div>
 
         {/* Before/After Toggle Button — only appears on photos where
-            isBeforeAfter is true. Lets the visitor switch between the
-            normal photo and the drag-to-compare slider. */}
+            isBeforeAfter is true. Lets the visitor enter before/after
+            comparison mode (then tap the image to toggle between before/after). */}
         {current.isBeforeAfter && (
           <button
-            onClick={() => setIsBeforeAfterMode(!isBeforeAfterMode)}
+            onClick={(e) => {
+              e.stopPropagation()
+              setIsBeforeAfterMode(!isBeforeAfterMode)
+              setShowAfter(false)
+            }}
             className="absolute bottom-3 right-3 bg-black/70 text-white px-3 py-1 rounded text-xs font-medium hover:bg-black/90 z-10"
           >
-            {isBeforeAfterMode ? 'View Photo' : 'Before/After'}
+            {isBeforeAfterMode ? 'View Photo' : 'Compare'}
           </button>
+        )}
+
+        {/* Tap hint — shown when in before/after mode to indicate image is tappable */}
+        {current.isBeforeAfter && isBeforeAfterMode && (
+          <div className="absolute top-4 left-4 bg-black/60 text-white px-3 py-1 rounded text-xs font-medium">
+            {showAfter ? 'After' : 'Before'} — Tap to toggle
+          </div>
         )}
       </div>
 
@@ -176,90 +204,6 @@ export default function PhotoCarousel({ photos }: PhotoCarouselProps) {
         >
           ›
         </button>
-      </div>
-    </div>
-  )
-}
-
-// =============================================================================
-// BEFORE/AFTER SLIDER — a sub-component used only inside PhotoCarousel above
-// =============================================================================
-// WHAT IT DOES:
-//   Shows the "after" photo as the full background, with the "before" photo
-//   overlaid on top of it. A visitor can move their mouse (or finger, on
-//   touchscreens) left/right across the image to reveal more or less of the
-//   "before" photo, letting them drag a vertical divider line to compare
-//   the two side by side.
-//
-// DEPENDS ON:
-//   - Only used by PhotoCarousel above; not used anywhere else in the site.
-//   - Requires both a "before" and "after" image path to be passed in.
-// =============================================================================
-interface BeforeAfterSliderProps {
-  before: string
-  after: string
-}
-
-function BeforeAfterSlider({ before, after }: BeforeAfterSliderProps) {
-  // How far across the image the divider line currently sits, as a
-  // percentage from 0 (all "after") to 100 (all "before").
-  const [position, setPosition] = useState(50)
-
-  // Updates the divider position as the visitor moves their mouse across
-  // the image (desktop/laptop pointer devices).
-  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
-    const container = e.currentTarget
-    const rect = container.getBoundingClientRect()
-    const newPosition = ((e.clientX - rect.left) / rect.width) * 100
-    setPosition(Math.max(0, Math.min(100, newPosition)))
-  }
-
-  return (
-    <div
-      className="relative w-full h-full cursor-col-resize"
-      onMouseMove={handleMouseMove}
-      onTouchMove={(e) => {
-        // Same idea as handleMouseMove above, but for touchscreen drags
-        // (phones/tablets) instead of mouse movement.
-        const touch = e.touches[0]
-        const container = e.currentTarget
-        const rect = container.getBoundingClientRect()
-        const newPosition = ((touch.clientX - rect.left) / rect.width) * 100
-        setPosition(Math.max(0, Math.min(100, newPosition)))
-      }}
-    >
-      <div className="relative w-full h-full">
-        {/* "After" image sits as the full-size background layer. */}
-        <Image src={after} alt="After" fill className="object-cover" />
-
-        {/* "Before" image is layered on top, but clipped to only show
-            up to the current divider position (so it looks like it's
-            being "revealed" as the visitor drags). */}
-        <div style={{ width: `${position}%` }} className="absolute top-0 left-0 h-full overflow-hidden">
-          <Image
-            src={before}
-            alt="Before"
-            fill
-            className="object-cover"
-            style={{ width: '100vw' }}
-          />
-        </div>
-
-        {/* The vertical white divider line that tracks the mouse/touch
-            position, visually separating "before" from "after". */}
-        <div
-          style={{ left: `${position}%` }}
-          className="absolute top-0 w-1 h-full bg-white shadow-lg"
-        />
-
-        {/* Small "Before" / "After" text labels in the corners so
-            visitors know which side is which. */}
-        <div className="absolute top-4 left-4 bg-black/60 text-white px-3 py-1 rounded text-sm font-medium">
-          Before
-        </div>
-        <div className="absolute top-4 right-4 bg-black/60 text-white px-3 py-1 rounded text-sm font-medium">
-          After
-        </div>
       </div>
     </div>
   )
