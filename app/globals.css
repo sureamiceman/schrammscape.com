@@ -1,33 +1,83 @@
+/* =============================================================================
+   GLOBAL STYLES — app/globals.css
+   =============================================================================
+   WHAT THIS FILE DOES:
+     Defines the "look and feel" rules that apply across the entire site:
+     the color palette, base fonts, and reusable style classes for specific
+     UI pieces (the carousel, the tabs, and the floating button).
+
+   DEPENDS ON:
+     - Tailwind CSS (the @tailwind lines below pull in Tailwind's utility
+       classes, which is what most of the "className=..." attributes
+       throughout the .tsx files are using, e.g. "flex", "px-4", "rounded").
+     - tailwind.config.ts, which tells Tailwind which files to scan for
+       class names and defines the "hunter" green color shade scale.
+
+   USED BY / DEPENDED ON BY:
+     - app/layout.tsx imports this file directly, which loads it site-wide
+       (every page automatically gets these styles).
+     - components/PhotoCarousel.tsx uses the .category-badge class.
+     - components/TabMenu.tsx uses the .tab-button and .tab-button.active
+       classes.
+     - components/FloatingCTA.tsx uses the .floating-cta class.
+     - The --hunter, --hunter-light, --hunter-dark, --grey-light, and
+       --grey-medium color variables defined below are referenced directly
+       throughout app/page.tsx and components/TabMenu.tsx (search for
+       "var(--hunter)" in those files) — so changing a color here updates
+       it everywhere at once.
+
+   IF YOU CHANGE THIS FILE:
+     - To change the site's main green brand color, update --hunter (and
+       its --hunter-light/--hunter-dark variants) below — it will update
+       the logo text, buttons, links, and active tab underline everywhere.
+   ============================================================================= */
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
+/* -----------------------------------------------------------------------
+   COLOR VARIABLES (CSS custom properties)
+   -----------------------------------------------------------------------
+   These are named colors that can be reused anywhere in the site's code
+   via var(--name). Think of them as a shared "paint palette" — instead of
+   typing the same green hex code in ten different places, everything
+   points back to --hunter, so updating it here updates the whole site.
+   ----------------------------------------------------------------------- */
 :root {
-  --hunter: #355e3b;
-  --hunter-light: #4a7361;
-  --hunter-dark: #2d4f32;
-  --grey-light: #e8e8e8;
-  --grey-medium: #d3d3d3;
-  --black: #1a1a1a;
-  --white: #ffffff;
+  --hunter: #355e3b;        /* Main brand green (logo text, links, buttons, active tab) */
+  --hunter-light: #4a7361;  /* Lighter green (currently unused directly, available for future use) */
+  --hunter-dark: #2d4f32;   /* Darker green (used for hover states, e.g. button hover) */
+  --grey-light: #e8e8e8;    /* Light grey (available for future use) */
+  --grey-medium: #d3d3d3;   /* Medium grey (used for the tagline text under the logo) */
+  --black: #1a1a1a;         /* Near-black (main body text color) */
+  --white: #ffffff;         /* Pure white (main background color) */
 }
 
+/* Removes default browser spacing/margins so layouts are predictable and
+   consistent across different browsers. */
 * {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
 }
 
+/* Makes any anchor-link scrolling (e.g. jumping to a page section) glide
+   smoothly instead of jumping instantly. */
 html {
   scroll-behavior: smooth;
 }
 
+/* Base page background/text color and the site's default font (uses each
+   device's native system font for a fast, familiar look). */
 body {
   background-color: var(--white);
   color: var(--black);
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
 }
 
+/* If a visitor's device/browser is set to Dark Mode, swap to a dark
+   background and light text automatically. */
 @media (prefers-color-scheme: dark) {
   body {
     background-color: #0f0f0f;
@@ -35,7 +85,10 @@ body {
   }
 }
 
-/* Carousel styling */
+/* -----------------------------------------------------------------------
+   CAROUSEL STYLING
+   Used by components/PhotoCarousel.tsx.
+   ----------------------------------------------------------------------- */
 .carousel-container {
   overflow: hidden;
   position: relative;
@@ -45,26 +98,41 @@ body {
   transition: opacity 0.5s ease-in-out;
 }
 
+/* The colored label shown in the top-left corner of each showcase photo
+   (e.g. "Lawn Care" or "Landscape"). Background color follows the main
+   brand green (--hunter) defined above. */
 .category-badge {
   @apply absolute top-3 left-3 text-white px-3 py-1 rounded text-sm font-semibold z-10;
   background-color: var(--hunter);
 }
 
-/* Tab styling */
+/* -----------------------------------------------------------------------
+   TAB STYLING
+   Used by components/TabMenu.tsx for the Contact / History / Request Info
+   tab headers.
+   ----------------------------------------------------------------------- */
 .tab-button {
   @apply px-4 py-3 font-medium transition-all duration-200;
 }
 
+/* Style applied only to whichever tab is currently selected: a green
+   underline and green text, so it's clear at a glance which tab is open. */
 .tab-button.active {
   border-bottom: 2px solid var(--hunter);
   color: var(--hunter);
 }
 
+/* Style applied to tabs that are NOT currently selected: greyed out,
+   darkening slightly on hover to hint that they're clickable. */
 .tab-button:not(.active) {
   @apply text-gray-500 hover:text-gray-700;
 }
 
-/* Floating CTA */
+/* -----------------------------------------------------------------------
+   FLOATING CTA (Call-To-Action) BUTTON
+   Used by components/FloatingCTA.tsx — the round button pinned to the
+   bottom-right corner of the screen.
+   ----------------------------------------------------------------------- */
 .floating-cta {
   @apply fixed bottom-6 right-6 w-16 h-16 text-white rounded-full flex items-center justify-center cursor-pointer shadow-lg hover:shadow-xl transition-shadow z-50;
   background-color: var(--hunter);
@@ -74,6 +142,9 @@ body {
   background-color: var(--hunter-dark);
 }
 
+/* On smaller/mobile screens (768px wide or less), shrink the floating
+   button slightly and move it a bit closer to the corner so it takes up
+   less space on small screens. */
 @media (max-width: 768px) {
   .floating-cta {
     @apply w-14 h-14 bottom-4 right-4;
