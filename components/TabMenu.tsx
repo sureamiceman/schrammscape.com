@@ -297,7 +297,7 @@ function RequestForm({ onSubmit }: RequestFormProps) {
           required
           value={formData.name}
           onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:border-transparent outline-none"
+          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:border-transparent outline-none text-black"
           style={{ '--tw-ring-color': 'var(--hunter)' } as any}
         />
       </div>
@@ -312,7 +312,7 @@ function RequestForm({ onSubmit }: RequestFormProps) {
           required
           value={formData.email}
           onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:border-transparent outline-none"
+          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:border-transparent outline-none text-black"
           style={{ '--tw-ring-color': 'var(--hunter)' } as any}
         />
       </div>
@@ -326,7 +326,7 @@ function RequestForm({ onSubmit }: RequestFormProps) {
           type="tel"
           value={formData.phone}
           onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:border-transparent outline-none"
+          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:border-transparent outline-none text-black"
           style={{ '--tw-ring-color': 'var(--hunter)' } as any}
         />
       </div>
@@ -340,7 +340,7 @@ function RequestForm({ onSubmit }: RequestFormProps) {
           value={formData.message}
           onChange={(e) => setFormData({ ...formData, message: e.target.value })}
           rows={4}
-          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-grass focus:border-transparent outline-none resize-none"
+          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-grass focus:border-transparent outline-none resize-none text-black"
         />
       </div>
 
