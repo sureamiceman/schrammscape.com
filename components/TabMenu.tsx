@@ -107,6 +107,7 @@ export default function TabMenu({
           History
         </button>
         <button
+          data-tab="request"
           onClick={() => handleTabClick('request')}
           className={`tab-button flex-1 text-center py-3 ${
             activeTab === 'request' ? 'active' : ''
