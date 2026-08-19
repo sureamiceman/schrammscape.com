@@ -2,14 +2,13 @@
 // PHOTO CAROUSEL — components/PhotoCarousel.tsx
 // =============================================================================
 // WHAT THIS FILE DOES:
-//   Displays one photo at a time in a rotating slideshow, with:
-//     - A colored category badge (e.g. "Lawn Care", "Landscape") in the
-//       top-left corner of the photo
+//   Displays photos in a rotating slideshow, with:
+//     - A colored category badge (e.g. "Lawn Care", "Landscape") for
+//       single photos
 //     - Left/right arrow buttons and a "2 / 5" counter to navigate manually
 //     - Automatic advancing to the next photo every 8 seconds
-//     - A special "Before/After" mode for photo pairs (like a flowerbed
-//       before it was landscaped vs. after) — visitors can tap the image
-//       to toggle between before and after photos
+//     - Side-by-side before/after comparison on mobile, stacked on desktop
+//       for photo pairs (like a flowerbed before it was landscaped vs. after)
 //
 // DEPENDS ON:
 //   - The "photos" list passed in by whichever page uses it. Right now that
@@ -45,13 +44,12 @@ import Image from 'next/image'
 // alt          — a short text description of the photo, used by screen
 //                readers for accessibility (not visibly shown to sighted
 //                visitors).
-// category     — the text shown in the colored badge on the photo
-//                (e.g. "Lawn Care").
-// isBeforeAfter — optional. Set to true to enable the before/after slider
-//                for this photo. When true, "afterSrc" is required too.
-// afterSrc     — optional. The "after" image to compare against "src"
-//                (which becomes the "before" image) when isBeforeAfter
-//                is true.
+// category     — the text shown in the colored badge on single photos
+//                (e.g. "Lawn Care"). Not shown for before/after pairs.
+// isBeforeAfter — optional. Set to true to display this as a before/after
+//                comparison. When true, "afterSrc" is required too.
+// afterSrc     — optional. The "after" image to display alongside "src"
+//                (the "before" image) when isBeforeAfter is true.
 // -----------------------------------------------------------------------
 export interface Photo {
   id: string
@@ -69,11 +67,6 @@ interface PhotoCarouselProps {
 export default function PhotoCarousel({ photos }: PhotoCarouselProps) {
   // Which photo in the list is currently being shown (0 = first photo).
   const [currentIndex, setCurrentIndex] = useState(0)
-  // Whether the before/after comparison mode is active for the photo being shown
-  // (only relevant when that photo has isBeforeAfter: true).
-  const [isBeforeAfterMode, setIsBeforeAfterMode] = useState(false)
-  // Which image is shown in before/after mode: true = after, false = before
-  const [showAfter, setShowAfter] = useState(false)
 
   // -----------------------------------------------------------------
   // Reset to the first photo whenever the photo LIST itself changes.
@@ -84,20 +77,16 @@ export default function PhotoCarousel({ photos }: PhotoCarouselProps) {
   // -----------------------------------------------------------------
   useEffect(() => {
     setCurrentIndex(0)
-    setIsBeforeAfterMode(false)
-    setShowAfter(false)
   }, [photos])
 
   // Advances to the next photo, wrapping back to the start after the last one.
   const handleNext = () => {
     setCurrentIndex((prev) => (prev + 1) % photos.length)
-    setIsBeforeAfterMode(false)
   }
 
   // Goes back to the previous photo, wrapping to the end if on the first one.
   const handlePrev = () => {
     setCurrentIndex((prev) => (prev - 1 + photos.length) % photos.length)
-    setIsBeforeAfterMode(false)
   }
 
   // -----------------------------------------------------------------
@@ -123,62 +112,57 @@ export default function PhotoCarousel({ photos }: PhotoCarouselProps) {
           Shows either a normal photo, or (if the current photo supports
           it and the visitor has toggled it on) the before/after slider.
       ================================================================= */}
-      <div
-        className="relative flex-1 bg-gray-100 overflow-hidden cursor-pointer"
-        onClick={() => {
-          if (current.isBeforeAfter && isBeforeAfterMode) {
-            setShowAfter(!showAfter)
-          }
-        }}
-      >
-        {current.isBeforeAfter && isBeforeAfterMode ? (
-          <Image
-            src={showAfter ? current.afterSrc || '' : current.src}
-            alt={showAfter ? 'After' : 'Before'}
-            fill
-            className="object-cover"
-            priority
-            sizes="(max-width: 768px) 100vw, 50vw"
-          />
-        ) : (
-          <Image
-            src={current.src}
-            alt={current.alt}
-            fill
-            className="object-cover"
-            priority
-            sizes="(max-width: 768px) 100vw, 50vw"
-          />
-        )}
+      {/* Photo display area — side-by-side on mobile, stacked on desktop */}
+      <div className="relative flex-1 bg-gray-100 overflow-hidden">
+        {current.isBeforeAfter ? (
+          // Before/After comparison: side-by-side on mobile, stacked on desktop
+          <div className="w-full h-full flex md:flex-col">
+            {/* Before image — left side on mobile, top on desktop */}
+            <div className="relative w-1/2 md:w-full md:h-1/2 flex-1">
+              <Image
+                src={current.src}
+                alt={`Before - ${current.alt}`}
+                fill
+                className="object-cover"
+                priority
+                sizes="(max-width: 768px) 50vw, 100vw"
+              />
+              <div className="absolute top-2 left-2 bg-black/60 text-white px-2 py-1 rounded text-xs font-medium">
+                Before
+              </div>
+            </div>
 
-        {/* Category Badge — the colored label in the top-left corner,
-            e.g. "Lawn Care" or "Landscape". Text and color come from
-            the .category-badge style in app/globals.css. */}
-        <div className="category-badge">
-          {current.category}
-        </div>
-
-        {/* Before/After Toggle Button — only appears on photos where
-            isBeforeAfter is true. Lets the visitor enter before/after
-            comparison mode (then tap the image to toggle between before/after). */}
-        {current.isBeforeAfter && (
-          <button
-            onClick={(e) => {
-              e.stopPropagation()
-              setIsBeforeAfterMode(!isBeforeAfterMode)
-              setShowAfter(false)
-            }}
-            className="absolute bottom-3 right-3 bg-black/70 text-white px-3 py-1 rounded text-xs font-medium hover:bg-black/90 z-10"
-          >
-            {isBeforeAfterMode ? 'View Photo' : 'Compare'}
-          </button>
-        )}
-
-        {/* Tap hint — shown when in before/after mode to indicate image is tappable */}
-        {current.isBeforeAfter && isBeforeAfterMode && (
-          <div className="absolute top-4 left-4 bg-black/60 text-white px-3 py-1 rounded text-xs font-medium">
-            {showAfter ? 'After' : 'Before'} — Tap to toggle
+            {/* After image — right side on mobile, bottom on desktop */}
+            <div className="relative w-1/2 md:w-full md:h-1/2 flex-1">
+              <Image
+                src={current.afterSrc || ''}
+                alt={`After - ${current.alt}`}
+                fill
+                className="object-cover"
+                priority
+                sizes="(max-width: 768px) 50vw, 100vw"
+              />
+              <div className="absolute top-2 right-2 bg-black/60 text-white px-2 py-1 rounded text-xs font-medium">
+                After
+              </div>
+            </div>
           </div>
+        ) : (
+          // Normal single photo
+          <>
+            <Image
+              src={current.src}
+              alt={current.alt}
+              fill
+              className="object-cover"
+              priority
+              sizes="(max-width: 768px) 100vw, 50vw"
+            />
+            {/* Category Badge */}
+            <div className="category-badge">
+              {current.category}
+            </div>
+          </>
         )}
       </div>
 
