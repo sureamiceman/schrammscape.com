@@ -150,3 +150,15 @@ body {
     @apply w-14 h-14 bottom-4 right-4;
   }
 }
+
+/* -----------------------------------------------------------------------
+   CREW APP (schrammscape.com/app)
+   -----------------------------------------------------------------------
+   iPhones zoom the whole page when you tap a text box whose text is
+   smaller than 16px. Inside the crew app, keep form text at 16px.
+   ----------------------------------------------------------------------- */
+.ss-app input,
+.ss-app select,
+.ss-app textarea {
+  font-size: 16px;
+}

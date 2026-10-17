@@ -20,7 +20,10 @@
 import { useState, type FormEvent } from 'react'
 import { supabase } from '@/lib/supabaseClient'
 
-export default function LoginForm() {
+export default function LoginForm({
+  title = 'SchrammScape Invoices',
+  subtitle = 'Sign in with your crew account',
+}: { title?: string; subtitle?: string } = {}) {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -46,9 +49,9 @@ export default function LoginForm() {
       >
         <div className="text-center mb-2">
           <h1 className="text-xl font-semibold" style={{ color: 'var(--hunter)' }}>
-            SchrammScape Invoices
+            {title}
           </h1>
-          <p className="text-sm text-gray-500 mt-1">Sign in with your crew account</p>
+          <p className="text-sm text-gray-500 mt-1">{subtitle}</p>
         </div>
 
         <input
@@ -58,7 +61,7 @@ export default function LoginForm() {
           placeholder="Email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          className="border rounded-md px-3 py-2 text-sm"
+          className="border rounded-md px-3 py-2 text-base"
         />
         <input
           type="password"
@@ -67,7 +70,7 @@ export default function LoginForm() {
           placeholder="Password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          className="border rounded-md px-3 py-2 text-sm"
+          className="border rounded-md px-3 py-2 text-base"
         />
 
         {error && <p className="text-sm text-red-600">{error}</p>}
