@@ -6,13 +6,15 @@
 //     - sign-in gate (same Supabase accounts as the iPhone app)
 //     - looks up the signed-in person's role (admin / manager / crew)
 //     - top bar with name + sign out, "offline" notice
+//     - sends edits saved while offline once signal is back
+//       (lib/app/pendingChanges.ts)
 //     - bottom tab bar: Today, Customers, Billing (Billing: admin/manager only)
 //
 //   Who sees what is enforced by the database's security rules, not by this
 //   screen. Hiding the Billing tab from crew is just tidiness.
 //
 // DEPENDS ON:
-//   - lib/supabaseClient.ts, lib/app/offlineCache.ts
+//   - lib/supabaseClient.ts, lib/app/offlineCache.ts, lib/app/pendingChanges.ts
 //   - components/invoices/LoginForm.tsx (shared with /invoices)
 //   - components/app/TodayTab.tsx, CustomersTab.tsx, BillingTab.tsx
 // =============================================================================
@@ -24,6 +26,7 @@ import Image from 'next/image'
 import type { Session } from '@supabase/supabase-js'
 import { supabase } from '@/lib/supabaseClient'
 import { clearCached } from '@/lib/app/offlineCache'
+import { flushPending, onPendingChange, pendingCount } from '@/lib/app/pendingChanges'
 import LoginForm from '@/components/invoices/LoginForm'
 import TodayTab from './TodayTab'
 import CustomersTab from './CustomersTab'
@@ -54,12 +57,23 @@ function useOnline() {
   return online
 }
 
+function usePendingCount() {
+  const [count, setCount] = useState(0)
+  useEffect(() => {
+    const update = () => setCount(pendingCount())
+    update()
+    return onPendingChange(update)
+  }, [])
+  return count
+}
+
 export default function AppShell() {
   const [session, setSession] = useState<Session | null>(null)
   const [authLoading, setAuthLoading] = useState(true)
   const [profiles, setProfiles] = useState<Profile[]>([])
   const [tab, setTab] = useState<TabId>('today')
   const online = useOnline()
+  const pending = usePendingCount()
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
@@ -75,6 +89,11 @@ export default function AppShell() {
     }
     return () => listener.subscription.unsubscribe()
   }, [])
+
+  // Send anything saved while offline: on sign-in/open, and whenever signal returns.
+  useEffect(() => {
+    if (session && online) flushPending()
+  }, [session, online])
 
   useEffect(() => {
     if (!session) return
@@ -105,6 +124,12 @@ export default function AppShell() {
   }
 
   const signOut = async () => {
+    if (
+      pending > 0 &&
+      !window.confirm(`${pending} change${pending === 1 ? ' is' : 's are'} still waiting for signal and will be lost. Sign out anyway?`)
+    ) {
+      return
+    }
     clearCached()
     await supabase.auth.signOut()
   }
@@ -145,10 +170,17 @@ export default function AppShell() {
             </button>
           </div>
         </div>
-        {!online && (
+        {!online ? (
           <div className="bg-amber-100 text-amber-900 text-xs text-center py-1">
-            Offline: showing the last saved copy. Changes need signal.
+            Offline: showing the last saved copy.
+            {pending > 0 && ` ${pending} change${pending === 1 ? '' : 's'} will send when you have signal.`}
           </div>
+        ) : (
+          pending > 0 && (
+            <div className="bg-amber-100 text-amber-900 text-xs text-center py-1">
+              Sending {pending} saved change{pending === 1 ? '' : 's'}…
+            </div>
+          )
         )}
       </header>
 

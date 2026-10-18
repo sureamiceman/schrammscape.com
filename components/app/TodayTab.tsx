@@ -9,8 +9,9 @@
 //   Crew only ever receive their own assigned jobs (database rule);
 //   admin/manager see everyone's, with the assigned person's name.
 //
-//   READ-ONLY for now: check-in / complete arrive in the next phase, once
-//   they're tested side by side with the iPhone app's sync.
+//   Each job is a JobCard (check in, complete, extra work). Edits show at
+//   once and are sent through lib/app/pendingChanges.ts, which holds them
+//   until there's signal.
 // =============================================================================
 
 'use client'
@@ -18,7 +19,9 @@
 import { useCallback, useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabaseClient'
 import { loadCached, saveCached } from '@/lib/app/offlineCache'
+import { onPendingChange, pendingPatch, queueChange } from '@/lib/app/pendingChanges'
 import type { Profile } from './AppShell'
+import JobCard from './JobCard'
 
 export interface WorkRecordRow {
   id: string
@@ -33,16 +36,19 @@ export interface WorkRecordRow {
   actual_end: string | null
   status: string
   assigned_to: string | null
+  extra_services: string[]
+  extra_notes: string
+  invoice_number: string | null
 }
 
-const STATUS: Record<string, { label: string; className: string }> = {
-  scheduled: { label: 'Scheduled', className: 'bg-gray-100 text-gray-700' },
-  inProgress: { label: 'In progress', className: 'bg-amber-100 text-amber-800' },
-  completed: { label: 'Done', className: 'bg-green-100 text-green-800' },
-  skipped: { label: 'Skipped', className: 'bg-gray-100 text-gray-500 line-through' },
+const JOB_COLUMNS =
+  'id, customer_name, address, job_title, phone, notes, scheduled_start, scheduled_end, actual_start, actual_end, status, assigned_to, extra_services, extra_notes, invoice_number'
+
+/** Lays edits that haven't reached the database yet over freshly loaded rows. */
+function withPending(rows: WorkRecordRow[]): WorkRecordRow[] {
+  return rows.map((r) => ({ ...r, ...(pendingPatch('work_records', r.id) as Partial<WorkRecordRow>) }))
 }
 
-const timeFmt = new Intl.DateTimeFormat('en-US', { hour: 'numeric', minute: '2-digit' })
 const dayFmt = new Intl.DateTimeFormat('en-US', { weekday: 'long', month: 'short', day: 'numeric' })
 
 function startOfDay(d: Date) {
@@ -66,18 +72,18 @@ export default function TodayTab({ profiles, showAssignee }: { profiles: Profile
   const [loading, setLoading] = useState(true)
   const [staleSince, setStaleSince] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [extraJobNames, setExtraJobNames] = useState<string[]>(() => loadCached<string[]>('extraJobNames')?.data ?? [])
+  const [, setPendingTick] = useState(0)
 
   const load = useCallback(async () => {
     const cacheKey = `jobs:${dayKey(day)}`
     const cached = loadCached<WorkRecordRow[]>(cacheKey)
-    if (cached) setJobs(cached.data)
+    if (cached) setJobs(withPending(cached.data))
     setLoading(true)
     setError(null)
     const { data, error } = await supabase
       .from('work_records')
-      .select(
-        'id, customer_name, address, job_title, phone, notes, scheduled_start, scheduled_end, actual_start, actual_end, status, assigned_to'
-      )
+      .select(JOB_COLUMNS)
       .is('deleted_at', null)
       .gte('scheduled_start', day.toISOString())
       .lt('scheduled_start', addDays(day, 1).toISOString())
@@ -89,14 +95,48 @@ export default function TodayTab({ profiles, showAssignee }: { profiles: Profile
       setError(error?.message ?? 'Could not load jobs.')
       return
     }
-    setJobs(data as WorkRecordRow[])
+    const rows = withPending(data as WorkRecordRow[])
+    setJobs(rows)
     setStaleSince(null)
-    saveCached(cacheKey, data)
+    saveCached(cacheKey, rows)
   }, [day])
 
   useEffect(() => {
     load()
   }, [load])
+
+  // Re-render when queued edits are sent, so "Waiting for signal" clears.
+  useEffect(() => onPendingChange(() => setPendingTick((n) => n + 1)), [])
+
+  // Catalog of add-on jobs for "+ Add job" (the non-default job types).
+  useEffect(() => {
+    supabase
+      .from('job_types')
+      .select('name')
+      .is('deleted_at', null)
+      .eq('is_default', false)
+      .order('sort_order')
+      .then(({ data }) => {
+        if (!data) return
+        const names = data.map((d) => d.name as string).filter(Boolean)
+        setExtraJobNames(names)
+        saveCached('extraJobNames', names)
+      })
+  }, [])
+
+  const change = (id: string, patch: Partial<WorkRecordRow>) => {
+    setJobs((prev) => {
+      const next = prev.map((j) => (j.id === id ? { ...j, ...patch } : j))
+      saveCached(`jobs:${dayKey(day)}`, next)
+      return next
+    })
+    queueChange('work_records', id, patch).then(({ failed }) => {
+      if (failed.length) {
+        window.alert(`Couldn't save: ${failed.map((f) => f.message).join('; ')}`)
+        load()
+      }
+    })
+  }
 
   const isToday = dayKey(day) === dayKey(new Date())
   const done = jobs.filter((j) => j.status === 'completed').length
@@ -132,46 +172,16 @@ export default function TodayTab({ profiles, showAssignee }: { profiles: Profile
       )}
 
       <ul className="flex flex-col gap-3">
-        {jobs.map((job) => {
-          const s = STATUS[job.status] ?? STATUS.scheduled
-          const who = showAssignee ? nameFor(job.assigned_to) : undefined
-          return (
-            <li key={job.id} className="bg-white rounded-lg border p-4">
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <div className="text-xs text-gray-500">
-                    {timeFmt.format(new Date(job.scheduled_start))} – {timeFmt.format(new Date(job.scheduled_end))}
-                    {who && ` · ${who}`}
-                  </div>
-                  <div className="font-semibold text-gray-900 truncate">{job.customer_name || 'Untitled job'}</div>
-                  {job.job_title && <div className="text-sm text-gray-600">{job.job_title}</div>}
-                </div>
-                <span className={`shrink-0 text-xs px-2 py-0.5 rounded-full ${s.className}`}>{s.label}</span>
-              </div>
-              {job.notes && <p className="text-sm text-gray-600 mt-2 whitespace-pre-line">{job.notes}</p>}
-              <div className="flex gap-2 mt-3">
-                {job.address && (
-                  <a
-                    href={mapsUrl(job.address)}
-                    className="flex-1 text-center text-sm rounded-md border py-2"
-                    style={{ color: 'var(--hunter)' }}
-                  >
-                    Directions
-                  </a>
-                )}
-                {job.phone && (
-                  <a
-                    href={`tel:${job.phone.replace(/[^\d+]/g, '')}`}
-                    className="flex-1 text-center text-sm rounded-md border py-2"
-                    style={{ color: 'var(--hunter)' }}
-                  >
-                    Call
-                  </a>
-                )}
-              </div>
-            </li>
-          )
-        })}
+        {jobs.map((job) => (
+          <JobCard
+            key={job.id}
+            job={job}
+            who={showAssignee ? nameFor(job.assigned_to) : undefined}
+            extraJobNames={extraJobNames}
+            pending={!!pendingPatch('work_records', job.id)}
+            onChange={(patch) => change(job.id, patch)}
+          />
+        ))}
       </ul>
 
       <button onClick={load} className="w-full text-sm text-gray-500 mt-4 py-2">
