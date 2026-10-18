@@ -15,6 +15,9 @@
 //   Several edits to the same job while offline are merged into one, with
 //   the newest value of each field winning.
 //
+//   Mileage legs logged on Complete (lib/app/mileage.ts) wait here too, after
+//   the completion itself, since measuring the road distance needs signal.
+//
 // STORAGE:
 //   localStorage, wrapped in try/catch like offlineCache.ts. If storage is
 //   blocked the edit is still sent straight away; it just can't wait for
@@ -22,15 +25,13 @@
 // =============================================================================
 
 import { supabase } from '@/lib/supabaseClient'
+import { sendLeg, type MileageLeg } from './mileage'
 
 export type Table = 'work_records'
 
-interface PendingChange {
-  table: Table
-  id: string
-  patch: Record<string, unknown>
-  queuedAt: string
-}
+type PendingChange =
+  | { table: Table; id: string; patch: Record<string, unknown>; queuedAt: string }
+  | { table: 'mileage_entries'; id: string; leg: MileageLeg; queuedAt: string }
 
 const KEY = 'ss-app:pending'
 const EVENT = 'ss-app:pending-changed'
@@ -63,7 +64,8 @@ export function pendingCount() {
 
 /** Pending field values for one row, so screens can show them before they're sent. */
 export function pendingPatch(table: Table, id: string): Record<string, unknown> | undefined {
-  return read().find((c) => c.table === table && c.id === id)?.patch
+  const change = read().find((c) => c.table === table && c.id === id)
+  return change && 'patch' in change ? change.patch : undefined
 }
 
 /** Calls `fn` whenever the queue changes. Returns an unsubscribe function. */
@@ -76,11 +78,38 @@ export function onPendingChange(fn: () => void) {
 export function queueChange(table: Table, id: string, patch: Record<string, unknown>) {
   const list = read()
   const existing = list.find((c) => c.table === table && c.id === id)
-  if (existing) existing.patch = { ...existing.patch, ...patch }
+  if (existing && 'patch' in existing) existing.patch = { ...existing.patch, ...patch }
   else list.push({ table, id, patch, queuedAt: new Date().toISOString() })
   write(list)
-  // If a send is already running, go again after it so this edit isn't left waiting.
+  return flushSoon()
+}
+
+/** Saves a mileage leg (one per job) and tries to send it right away. */
+export function queueMileage(leg: MileageLeg) {
+  const list = read()
+  if (!list.some((c) => c.table === 'mileage_entries' && c.id === leg.jobId)) {
+    list.push({ table: 'mileage_entries', id: leg.jobId, leg, queuedAt: new Date().toISOString() })
+    write(list)
+  }
+  return flushSoon()
+}
+
+// If a send is already running, go again after it so a new item isn't left waiting.
+function flushSoon() {
   return flushing ? flushing.then(() => flushPending()) : flushPending()
+}
+
+const looksOffline = (message: string) => !navigator.onLine || /fetch|network|load failed/i.test(message)
+
+/** Sends one item. Returns null when done, or the database's refusal message. */
+async function send(change: PendingChange): Promise<string | null> {
+  if (change.table === 'mileage_entries') {
+    await sendLeg(change.leg) // throws on any failure
+    return null
+  }
+  const { data, error } = await supabase.from(change.table).update(change.patch).eq('id', change.id).select('id')
+  if (error) throw new Error(error.message)
+  return data?.length ? null : 'You no longer have access to this job.'
 }
 
 export interface FlushResult {
@@ -100,18 +129,18 @@ export function flushPending(): Promise<FlushResult> {
     const result: FlushResult = { sent: 0, failed: [] }
     if (typeof navigator !== 'undefined' && !navigator.onLine) return result
     for (const change of read()) {
-      const { data, error } = await supabase
-        .from(change.table)
-        .update(change.patch)
-        .eq('id', change.id)
-        .select('id')
-      const offline = error && (!navigator.onLine || /fetch|network/i.test(error.message))
-      if (offline) break
+      let refused: string | null
+      try {
+        refused = await send(change)
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err)
+        if (looksOffline(message)) break // no signal: keep it and everything after it
+        refused = message
+      }
       // Remove only if nothing newer was merged in while this was in flight.
-      const sentPatch = JSON.stringify(change.patch)
-      write(read().filter((c) => !(c.table === change.table && c.id === change.id && JSON.stringify(c.patch) === sentPatch)))
-      if (error) result.failed.push({ id: change.id, message: error.message })
-      else if (!data?.length) result.failed.push({ id: change.id, message: 'You no longer have access to this job.' })
+      const sent = JSON.stringify(change)
+      write(read().filter((c) => JSON.stringify(c) !== sent))
+      if (refused) result.failed.push({ id: change.id, message: refused })
       else result.sent++
     }
     return result

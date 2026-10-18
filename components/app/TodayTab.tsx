@@ -11,7 +11,8 @@
 //
 //   Each job is a JobCard (check in, complete, extra work). Edits show at
 //   once and are sent through lib/app/pendingChanges.ts, which holds them
-//   until there's signal.
+//   until there's signal. Completing a job also logs the mileage leg from
+//   the previous stop (lib/app/mileage.ts), like the iPhone app.
 // =============================================================================
 
 'use client'
@@ -19,7 +20,8 @@
 import { useCallback, useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabaseClient'
 import { loadCached, saveCached } from '@/lib/app/offlineCache'
-import { onPendingChange, pendingPatch, queueChange } from '@/lib/app/pendingChanges'
+import { buildLeg } from '@/lib/app/mileage'
+import { onPendingChange, pendingPatch, queueChange, queueMileage, type FlushResult } from '@/lib/app/pendingChanges'
 import type { Profile } from './AppShell'
 import JobCard from './JobCard'
 
@@ -39,10 +41,13 @@ export interface WorkRecordRow {
   extra_services: string[]
   extra_notes: string
   invoice_number: string | null
+  event_identifier: string | null
+  latitude: number | null
+  longitude: number | null
 }
 
 const JOB_COLUMNS =
-  'id, customer_name, address, job_title, phone, notes, scheduled_start, scheduled_end, actual_start, actual_end, status, assigned_to, extra_services, extra_notes, invoice_number'
+  'id, customer_name, address, job_title, phone, notes, scheduled_start, scheduled_end, actual_start, actual_end, status, assigned_to, extra_services, extra_notes, invoice_number, event_identifier, latitude, longitude'
 
 /** Lays edits that haven't reached the database yet over freshly loaded rows. */
 function withPending(rows: WorkRecordRow[]): WorkRecordRow[] {
@@ -124,19 +129,27 @@ export default function TodayTab({ profiles, showAssignee }: { profiles: Profile
       })
   }, [])
 
+  const reportFailures = ({ failed }: FlushResult) => {
+    if (failed.length) {
+      window.alert(`Couldn't save: ${failed.map((f) => f.message).join('; ')}`)
+      load()
+    }
+  }
+
   const change = (id: string, patch: Partial<WorkRecordRow>) => {
+    const job = jobs.find((j) => j.id === id)
     setJobs((prev) => {
       const next = prev.map((j) => (j.id === id ? { ...j, ...patch } : j))
       saveCached(`jobs:${dayKey(day)}`, next)
       return next
     })
-    queueChange('work_records', id, patch).then(({ failed }) => {
-      if (failed.length) {
-        window.alert(`Couldn't save: ${failed.map((f) => f.message).join('; ')}`)
-        load()
-      }
-    })
+    queueChange('work_records', id, patch).then(reportFailures)
+    if (job && patch.status === 'completed' && job.status !== 'completed' && patch.actual_end) {
+      const leg = buildLeg(job, jobs, patch.actual_end)
+      if (leg) queueMileage(leg).then(reportFailures)
+    }
   }
+
 
   const isToday = dayKey(day) === dayKey(new Date())
   const done = jobs.filter((j) => j.status === 'completed').length
