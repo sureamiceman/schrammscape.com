@@ -9,7 +9,8 @@
 //
 // HOW IT STAYS FRIENDLY WITH THE IPHONE APP:
 //   Only the fields that were actually changed are sent (an UPDATE, never a
-//   whole-row upsert). The iPhone app's own sync then pulls the new values,
+//   whole-row upsert). New rows (e.g. a new customer) are created with an
+//   upsert on their own fresh id, so a retry can't create a duplicate. The iPhone app's own sync then pulls the new values,
 //   because the database bumps updated_at on every write.
 //
 //   Several edits to the same job while offline are merged into one, with
@@ -27,10 +28,10 @@
 import { supabase } from '@/lib/supabaseClient'
 import { sendLeg, type MileageLeg } from './mileage'
 
-export type Table = 'work_records'
+export type Table = 'work_records' | 'customers'
 
 type PendingChange =
-  | { table: Table; id: string; patch: Record<string, unknown>; queuedAt: string }
+  | { table: Table; id: string; patch: Record<string, unknown>; insert?: boolean; queuedAt: string }
   | { table: 'mileage_entries'; id: string; leg: MileageLeg; queuedAt: string }
 
 const KEY = 'ss-app:pending'
@@ -68,18 +69,26 @@ export function pendingPatch(table: Table, id: string): Record<string, unknown> 
   return change && 'patch' in change ? change.patch : undefined
 }
 
+/** Rows created on this phone that haven't reached the database yet. */
+export function pendingInserts(table: Table): Record<string, unknown>[] {
+  return read().flatMap((c) => (c.table === table && 'patch' in c && c.insert ? [{ ...c.patch, id: c.id }] : []))
+}
+
 /** Calls `fn` whenever the queue changes. Returns an unsubscribe function. */
 export function onPendingChange(fn: () => void) {
   window.addEventListener(EVENT, fn)
   return () => window.removeEventListener(EVENT, fn)
 }
 
-/** Saves an edit and tries to send it right away. */
-export function queueChange(table: Table, id: string, patch: Record<string, unknown>) {
+/**
+ * Saves an edit and tries to send it right away. `insert` creates the row
+ * (use a fresh crypto.randomUUID() id); later edits to it merge in.
+ */
+export function queueChange(table: Table, id: string, patch: Record<string, unknown>, { insert = false } = {}) {
   const list = read()
   const existing = list.find((c) => c.table === table && c.id === id)
   if (existing && 'patch' in existing) existing.patch = { ...existing.patch, ...patch }
-  else list.push({ table, id, patch, queuedAt: new Date().toISOString() })
+  else list.push({ table, id, patch, insert, queuedAt: new Date().toISOString() })
   write(list)
   return flushSoon()
 }
@@ -107,9 +116,11 @@ async function send(change: PendingChange): Promise<string | null> {
     await sendLeg(change.leg) // throws on any failure
     return null
   }
-  const { data, error } = await supabase.from(change.table).update(change.patch).eq('id', change.id).select('id')
+  const { data, error } = change.insert
+    ? await supabase.from(change.table).upsert({ ...change.patch, id: change.id }).select('id')
+    : await supabase.from(change.table).update(change.patch).eq('id', change.id).select('id')
   if (error) throw new Error(error.message)
-  return data?.length ? null : 'You no longer have access to this job.'
+  return data?.length ? null : `You don't have permission to change this ${change.table === 'customers' ? 'customer' : 'job'}.`
 }
 
 export interface FlushResult {

@@ -186,7 +186,7 @@ export default function AppShell() {
 
       <main className="flex-1 w-full max-w-3xl mx-auto px-4 pt-4 pb-28">
         {activeTab === 'today' && <TodayTab profiles={profiles} showAssignee={isManager} />}
-        {activeTab === 'customers' && <CustomersTab showRates={isManager} />}
+        {activeTab === 'customers' && <CustomersTab showRates={isManager} canEdit={isManager} />}
         {activeTab === 'billing' && isManager && <BillingTab />}
       </main>
 

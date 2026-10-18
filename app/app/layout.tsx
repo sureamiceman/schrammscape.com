@@ -41,7 +41,7 @@ export const viewport: Viewport = {
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="ss-app">
+    <div className="ss-app min-h-screen bg-gray-50">
       <ServiceWorkerRegister />
       {children}
     </div>

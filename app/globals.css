@@ -162,3 +162,11 @@ body {
 .ss-app textarea {
   font-size: 16px;
 }
+
+/* The crew app is light-only for now: its screens use white/grey
+   backgrounds, so the website's dark-mode white body text (above) would
+   be invisible on them. Keep dark text and light form controls here. */
+.ss-app {
+  color: var(--black);
+  color-scheme: light;
+}
