@@ -97,35 +97,75 @@ function straightLineMeters([lat1, lon1]: LatLon, [lat2, lon2]: LatLon) {
   return 2 * 6371000 * Math.asin(Math.sqrt(h))
 }
 
+export interface DriveMatrix {
+  /** Drive time in seconds, [from][to]. */
+  seconds: number[][]
+  /** Road distance in meters, [from][to]. */
+  meters: number[][]
+  /** True when the road service couldn't be reached and straight lines were used. */
+  estimated: boolean
+}
+
 /**
- * Drive time in seconds between every pair of points, in one request to the
- * free OSRM service (coordinates only). If it can't be reached, falls back
- * to 30 mph over the straight-line distance, like the iPhone app.
+ * Drive time and road distance between every pair of points, from one
+ * request to the free OSRM service, which routes over the OpenStreetMap
+ * road network (coordinates only are sent; no live traffic). If it can't be
+ * reached, falls back to 30 mph over the straight-line distance, like the
+ * iPhone app, and says so via `estimated`.
  */
-export async function driveSecondsMatrix(points: LatLon[]): Promise<{ seconds: number[][]; estimated: boolean }> {
+export async function driveMatrix(points: LatLon[]): Promise<DriveMatrix> {
   try {
     const coords = points.map(([lat, lon]) => `${lon},${lat}`).join(';')
-    const res = await fetch(`https://router.project-osrm.org/table/v1/driving/${coords}?annotations=duration`, {
+    const res = await fetch(`https://router.project-osrm.org/table/v1/driving/${coords}?annotations=duration,distance`, {
       signal: AbortSignal.timeout(10000),
     })
     const body = await res.json()
-    const m = body?.durations as (number | null)[][] | undefined
-    if (body?.code === 'Ok' && m?.length === points.length) {
+    const d = body?.durations as (number | null)[][] | undefined
+    const m = body?.distances as (number | null)[][] | undefined
+    if (body?.code === 'Ok' && d?.length === points.length && m?.length === points.length) {
       // Symmetrize (the optimizer assumes A->B == B->A) and patch any gaps.
-      const seconds = points.map((a, i) =>
-        points.map((b, j) => {
-          const ab = m[i][j]
-          const ba = m[j][i]
-          if (ab != null && ba != null) return (ab + ba) / 2
-          return ab ?? ba ?? straightLineMeters(a, b) / 13.4
-        })
-      )
-      return { seconds, estimated: false }
+      const sym = (t: (number | null)[][], gap: (a: LatLon, b: LatLon) => number) =>
+        points.map((a, i) =>
+          points.map((b, j) => {
+            const ab = t[i][j]
+            const ba = t[j][i]
+            if (ab != null && ba != null) return (ab + ba) / 2
+            return ab ?? ba ?? gap(a, b)
+          })
+        )
+      return {
+        seconds: sym(d, (a, b) => straightLineMeters(a, b) / 13.4),
+        meters: sym(m, straightLineMeters),
+        estimated: false,
+      }
     }
   } catch {
     /* unreachable or throttled: fall through */
   }
-  return { seconds: points.map((a) => points.map((b) => straightLineMeters(a, b) / 13.4)), estimated: true }
+  const meters = points.map((a) => points.map((b) => straightLineMeters(a, b)))
+  return { seconds: meters.map((row) => row.map((v) => v / 13.4)), meters, estimated: true }
+}
+
+/**
+ * Google Maps directions links for the day, in visiting order. Phones'
+ * browsers allow only 3 stops between start and end, so long days are
+ * split into consecutive links (each one starts where the last ended).
+ */
+export function googleMapsRouteLinks(start: LatLon | null, stops: LatLon[]) {
+  const pts = (start ? [start, ...stops] : stops).map(([lat, lon]) => `${lat.toFixed(6)},${lon.toFixed(6)}`)
+  const links: { from: number; to: number; url: string }[] = []
+  const offset = start ? 0 : 1 // stop numbers shown to the user start at 1
+  for (let i = 0; i < pts.length - 1; i += 4) {
+    const chunk = pts.slice(i, i + 5)
+    const url = new URL('https://www.google.com/maps/dir/')
+    url.searchParams.set('api', '1')
+    url.searchParams.set('origin', chunk[0])
+    url.searchParams.set('destination', chunk[chunk.length - 1])
+    if (chunk.length > 2) url.searchParams.set('waypoints', chunk.slice(1, -1).join('|'))
+    url.searchParams.set('travelmode', 'driving')
+    links.push({ from: i + offset, to: i + chunk.length - 1 + offset, url: url.toString() })
+  }
+  return links
 }
 
 // ----------------------------------------------------------- route order

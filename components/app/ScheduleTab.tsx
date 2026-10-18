@@ -7,8 +7,10 @@
 //     1. Day      date, first start time, and who works it
 //     2. Stops    customers for that weekday, pre-ticked when their visit is
 //                 due; ones already on that day are flagged and left unticked
-//     3. Route    best order from where you are now, with times chained
-//                 through the day; reorder or drop stops, change start time
+//     3. Route    best order from where you are now, using real road drive
+//                 times and miles (OSRM over OpenStreetMap roads), with times
+//                 chained through the day; reorder or drop stops, change the
+//                 start time, or open the route in Google Maps to check it
 //     4. Save     creates the jobs (work_records) so they show on Today, on
 //                 the crew member's phone, and in the iPhone app's My Day;
 //                 then offers an .ics file to add them to a calendar
@@ -37,7 +39,8 @@ import {
   buildIcs,
   chainTimes,
   defaultStartMinutes,
-  driveSecondsMatrix,
+  driveMatrix,
+  googleMapsRouteLinks,
   hhmm,
   notesTemplate,
   optimizeOrder,
@@ -97,7 +100,10 @@ export default function ScheduleTab({ profiles, myId }: { profiles: Profile[]; m
   const [showAll, setShowAll] = useState(false)
   const [stops, setStops] = useState<Stop[]>([])
   const [matrix, setMatrix] = useState<number[][]>([])
-  const [hasStartPoint, setHasStartPoint] = useState(false)
+  const [meters, setMeters] = useState<number[][]>([])
+  const [startPoint, setStartPoint] = useState<LatLon | null>(null)
+  const hasStartPoint = !!startPoint
+  const [approximate, setApproximate] = useState<string[]>([])
   const [estimatedDrive, setEstimatedDrive] = useState(false)
   const [working, setWorking] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -165,6 +171,7 @@ export default function ScheduleTab({ profiles, myId }: { profiles: Profile[]; m
 
     // Every stop needs coordinates; look up any that were never validated.
     const located = [...chosen]
+    const rough: string[] = []
     const missing = located.filter((c) => c.latitude == null && c.address.trim())
     for (let i = 0; i < missing.length; i++) {
       const c = missing[i]
@@ -172,6 +179,7 @@ export default function ScheduleTab({ profiles, myId }: { profiles: Profile[]; m
       if (i > 0) await wait(1100) // OpenStreetMap allows about one lookup per second
       const hit = await geocode(c.address)
       if (hit) {
+        if (hit.precision !== 'address') rough.push(`${c.name || c.address} (${hit.precision} only)`)
         const coords = { latitude: hit.latitude, longitude: hit.longitude, geocode_status: 'valid' }
         located[located.indexOf(c)] = { ...c, ...coords }
         queueChange('customers', c.id, coords) // remember them on the customer, like the iPhone app
@@ -189,13 +197,16 @@ export default function ScheduleTab({ profiles, myId }: { profiles: Profile[]; m
     const points: LatLon[] = located.map((c) => [c.latitude!, c.longitude!])
     // Point 0 is where the day starts. Without a location, use a "start" that
     // is zero distance from every stop, so the route can begin anywhere.
-    const { seconds, estimated } = await driveSecondsMatrix(here ? [here, ...points] : points)
-    const full = here ? seconds : [new Array(points.length + 1).fill(0), ...seconds.map((row) => [0, ...row])]
+    const road = await driveMatrix(here ? [here, ...points] : points)
+    const pad = (m: number[][]) => (here ? m : [new Array(points.length + 1).fill(0), ...m.map((row) => [0, ...row])])
+    const full = pad(road.seconds)
 
     const order = optimizeOrder(full)
     setMatrix(full)
-    setHasStartPoint(!!here)
-    setEstimatedDrive(estimated)
+    setMeters(pad(road.meters))
+    setStartPoint(here)
+    setEstimatedDrive(road.estimated)
+    setApproximate(rough)
     setStops(
       order.map((idx) => {
         const c = located[idx - 1]
@@ -217,6 +228,15 @@ export default function ScheduleTab({ profiles, myId }: { profiles: Profile[]; m
         startMin
       ),
     [stops, matrix, hasStartPoint, startMin]
+  )
+
+  /** Road miles into stop i (from the previous stop, or from the start point). */
+  const legMiles = (i: number) =>
+    i === 0 && !hasStartPoint ? null : (meters[i === 0 ? 0 : stops[i - 1].matrixIndex]?.[stops[i].matrixIndex] ?? 0) / 1609.344
+  const totalMiles = stops.reduce((t, _, i) => (i === 0 ? t : t + (legMiles(i) ?? 0)), 0)
+  const mapLinks = useMemo(
+    () => googleMapsRouteLinks(startPoint, stops.map((s) => [s.customer.latitude!, s.customer.longitude!] as LatLon)),
+    [startPoint, stops]
   )
 
   const lastEnd = times.length ? times[times.length - 1].end : 0
@@ -411,10 +431,27 @@ export default function ScheduleTab({ profiles, myId }: { profiles: Profile[]; m
             </div>
             <div className="text-gray-600">
               {stops.length} stop{stops.length === 1 ? '' : 's'} — {workLabel(work)} of work
-              {drive > 0 && `, ${drive} min driving`} · done by {hhmm(lastEnd)}
+              {drive > 0 && `, ${drive} min / ${totalMiles.toFixed(1)} mi driving`} · done by {hhmm(lastEnd)}
             </div>
+            {estimatedDrive ? (
+              <div className="mt-2 rounded-md bg-amber-50 border border-amber-200 p-2 text-xs text-amber-800">
+                The road-directions service couldn&apos;t be reached, so drive times and miles are straight-line
+                estimates and the order may not be the best one.{' '}
+                <button onClick={buildRoute} className="underline font-medium">
+                  Try road directions again
+                </button>
+              </div>
+            ) : (
+              <p className="text-xs text-gray-500 mt-1">
+                Order and drive times from real road routes (OpenStreetMap roads via OSRM). Typical driving, no live traffic.
+              </p>
+            )}
             {!hasStartPoint && <p className="text-xs text-amber-700 mt-1">Location unavailable, so the route starts at the first stop.</p>}
-            {estimatedDrive && <p className="text-xs text-amber-700 mt-1">Drive times are estimates (directions service unreachable).</p>}
+            {approximate.length > 0 && (
+              <p className="text-xs text-amber-700 mt-1">
+                Only roughly located: {approximate.join(', ')}. Fix the address in Customers for an exact route.
+              </p>
+            )}
             <label className="flex items-center gap-2 mt-2">
               <span className="text-xs text-gray-500">Start at</span>
               <select className="rounded-md border px-2 py-1 bg-white" value={startMin} onChange={(e) => setStartMin(Number(e.target.value))}>
@@ -431,7 +468,9 @@ export default function ScheduleTab({ profiles, myId }: { profiles: Profile[]; m
             {stops.map((s, i) => (
               <li key={s.customer.id}>
                 {times[i].driveMinutes != null && (i > 0 || hasStartPoint) && (
-                  <div className="text-xs text-gray-400 pl-3 mb-1">↓ {times[i].driveMinutes} min drive</div>
+                  <div className="text-xs text-gray-400 pl-3 mb-1">
+                    ↓ {times[i].driveMinutes} min · {(legMiles(i) ?? 0).toFixed(1)} mi{i === 0 && ' from your location'}
+                  </div>
                 )}
                 <div className="bg-white rounded-lg border p-3 flex items-start gap-3">
                   <div className="text-sm font-semibold tabular-nums w-24 shrink-0" style={{ color: 'var(--hunter)' }}>
@@ -461,6 +500,22 @@ export default function ScheduleTab({ profiles, myId }: { profiles: Profile[]; m
               </li>
             ))}
           </ol>
+          <div className="flex flex-wrap gap-2 mb-4">
+            {mapLinks.map((l) => (
+              <a
+                key={l.url}
+                href={l.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex-1 min-w-[45%] text-center text-sm rounded-md border bg-white py-2"
+                style={{ color: 'var(--hunter)' }}
+              >
+                {mapLinks.length === 1
+                  ? 'Check route in Google Maps'
+                  : `Map: ${l.from === 0 ? 'you' : `stop ${l.from}`} → stop ${l.to}`}
+              </a>
+            ))}
+          </div>
           <div className="flex gap-2">
             <button onClick={() => setStep('stops')} className="flex-1 rounded-md border bg-white py-2.5">
               Back

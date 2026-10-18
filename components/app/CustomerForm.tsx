@@ -18,7 +18,7 @@
 'use client'
 
 import { useState } from 'react'
-import { geocode } from '@/lib/app/geocode'
+import { geocode, type GeocodeResult } from '@/lib/app/geocode'
 import type { CustomerRow } from './CustomersTab'
 
 const DAY_OPTIONS = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN']
@@ -66,7 +66,7 @@ export default function CustomerForm({
   const [draft, setDraft] = useState(customer)
   const [rateText, setRateText] = useState(customer.default_rate ? String(customer.default_rate) : '')
   const [validating, setValidating] = useState(false)
-  const [match, setMatch] = useState<string | null>(null)
+  const [match, setMatch] = useState<GeocodeResult | null>(null)
 
   const set = <K extends keyof typeof draft>(key: K, value: (typeof draft)[K]) => setDraft((d) => ({ ...d, [key]: value }))
 
@@ -80,7 +80,7 @@ export default function CustomerForm({
     const hit = await geocode(draft.address)
     setValidating(false)
     if (hit) {
-      setMatch(hit.displayName)
+      setMatch(hit)
       setDraft((d) => ({ ...d, latitude: hit.latitude, longitude: hit.longitude, geocode_status: 'valid' }))
     } else {
       setMatch(null)
@@ -147,7 +147,13 @@ export default function CustomerForm({
               {validating ? 'Checking…' : 'Validate'}
             </button>
           </div>
-          {match && <p className="text-xs text-gray-500">Found: {match}</p>}
+          {match && (
+            <p className={`text-xs ${match.precision === 'address' ? 'text-gray-500' : 'text-amber-700'}`}>
+              {match.precision === 'address'
+                ? `Found (${match.source}): ${match.displayName}`
+                : `Only the ${match.precision === 'street' ? 'street' : 'general area'} was found (${match.source}): ${match.displayName}. Check the house number and ZIP, then validate again; routes and mileage use this spot.`}
+            </p>
+          )}
         </Section>
 
         <Section title="Job">
