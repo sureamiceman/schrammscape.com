@@ -21,7 +21,14 @@ import { useCallback, useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabaseClient'
 import { loadCached, saveCached } from '@/lib/app/offlineCache'
 import { buildLeg } from '@/lib/app/mileage'
-import { onPendingChange, pendingPatch, queueChange, queueMileage, type FlushResult } from '@/lib/app/pendingChanges'
+import {
+  onPendingChange,
+  pendingInserts,
+  pendingPatch,
+  queueChange,
+  queueMileage,
+  type FlushResult,
+} from '@/lib/app/pendingChanges'
 import type { Profile } from './AppShell'
 import JobCard from './JobCard'
 
@@ -49,9 +56,19 @@ export interface WorkRecordRow {
 const JOB_COLUMNS =
   'id, customer_name, address, job_title, phone, notes, scheduled_start, scheduled_end, actual_start, actual_end, status, assigned_to, extra_services, extra_notes, invoice_number, event_identifier, latitude, longitude'
 
-/** Lays edits that haven't reached the database yet over freshly loaded rows. */
-function withPending(rows: WorkRecordRow[]): WorkRecordRow[] {
-  return rows.map((r) => ({ ...r, ...(pendingPatch('work_records', r.id) as Partial<WorkRecordRow>) }))
+/**
+ * Lays edits that haven't reached the database yet over freshly loaded rows,
+ * and adds that day's unsent new jobs (e.g. scheduled with no signal).
+ */
+function withPending(rows: WorkRecordRow[], dayStart: Date, dayEnd: Date): WorkRecordRow[] {
+  const merged = rows.map((r) => ({ ...r, ...(pendingPatch('work_records', r.id) as Partial<WorkRecordRow>) }))
+  const ids = new Set(rows.map((r) => r.id))
+  const blank = { actual_start: null, actual_end: null, extra_services: [], extra_notes: '', invoice_number: null }
+  const added = (pendingInserts('work_records').map((r) => ({ ...blank, ...r })) as unknown as WorkRecordRow[]).filter((r) => {
+    const t = new Date(r.scheduled_start).getTime()
+    return !ids.has(r.id) && t >= dayStart.getTime() && t < dayEnd.getTime()
+  })
+  return [...merged, ...added].sort((a, b) => a.scheduled_start.localeCompare(b.scheduled_start))
 }
 
 const dayFmt = new Intl.DateTimeFormat('en-US', { weekday: 'long', month: 'short', day: 'numeric' })
@@ -83,7 +100,8 @@ export default function TodayTab({ profiles, showAssignee }: { profiles: Profile
   const load = useCallback(async () => {
     const cacheKey = `jobs:${dayKey(day)}`
     const cached = loadCached<WorkRecordRow[]>(cacheKey)
-    if (cached) setJobs(withPending(cached.data))
+    const dayEnd = addDays(day, 1)
+    if (cached) setJobs(withPending(cached.data, day, dayEnd))
     setLoading(true)
     setError(null)
     const { data, error } = await supabase
@@ -96,11 +114,11 @@ export default function TodayTab({ profiles, showAssignee }: { profiles: Profile
     setLoading(false)
     if (error || !data) {
       setStaleSince(cached?.savedAt ?? null)
-      if (!cached) setJobs([])
+      setJobs(withPending(cached?.data ?? [], day, dayEnd))
       setError(error?.message ?? 'Could not load jobs.')
       return
     }
-    const rows = withPending(data as WorkRecordRow[])
+    const rows = withPending(data as WorkRecordRow[], day, dayEnd)
     setJobs(rows)
     setStaleSince(null)
     saveCached(cacheKey, rows)

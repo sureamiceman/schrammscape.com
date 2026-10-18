@@ -8,7 +8,8 @@
 //     - top bar with name + sign out, "offline" notice
 //     - sends edits saved while offline once signal is back
 //       (lib/app/pendingChanges.ts)
-//     - bottom tab bar: Today, Customers, Billing (Billing: admin/manager only)
+//     - bottom tab bar: Today, Schedule, Customers, Billing
+//       (Schedule and Billing: admin/manager only)
 //
 //   Who sees what is enforced by the database's security rules, not by this
 //   screen. Hiding the Billing tab from crew is just tidiness.
@@ -16,7 +17,7 @@
 // DEPENDS ON:
 //   - lib/supabaseClient.ts, lib/app/offlineCache.ts, lib/app/pendingChanges.ts
 //   - components/invoices/LoginForm.tsx (shared with /invoices)
-//   - components/app/TodayTab.tsx, CustomersTab.tsx, BillingTab.tsx
+//   - components/app/TodayTab.tsx, ScheduleTab.tsx, CustomersTab.tsx, BillingTab.tsx
 // =============================================================================
 
 'use client'
@@ -30,6 +31,7 @@ import { flushPending, onPendingChange, pendingCount } from '@/lib/app/pendingCh
 import LoginForm from '@/components/invoices/LoginForm'
 import TodayTab from './TodayTab'
 import CustomersTab from './CustomersTab'
+import ScheduleTab from './ScheduleTab'
 import BillingTab from './BillingTab'
 
 export type Role = 'admin' | 'manager' | 'crew'
@@ -39,7 +41,7 @@ export interface Profile {
   role: Role
 }
 
-type TabId = 'today' | 'customers' | 'billing'
+type TabId = 'today' | 'schedule' | 'customers' | 'billing'
 const TAB_KEY = 'ss-app:tab'
 
 function useOnline() {
@@ -109,6 +111,7 @@ export default function AppShell() {
   const isManager = me?.role === 'admin' || me?.role === 'manager'
   const tabs: { id: TabId; label: string; icon: JSX.Element }[] = [
     { id: 'today', label: 'Today', icon: <IconCalendar /> },
+    ...(isManager ? [{ id: 'schedule' as TabId, label: 'Schedule', icon: <IconRoute /> }] : []),
     { id: 'customers', label: 'Customers', icon: <IconPeople /> },
     ...(isManager ? [{ id: 'billing' as TabId, label: 'Billing', icon: <IconInvoice /> }] : []),
   ]
@@ -186,6 +189,7 @@ export default function AppShell() {
 
       <main className="flex-1 w-full max-w-3xl mx-auto px-4 pt-4 pb-28">
         {activeTab === 'today' && <TodayTab profiles={profiles} showAssignee={isManager} />}
+        {activeTab === 'schedule' && isManager && <ScheduleTab profiles={profiles} myId={session.user.id} />}
         {activeTab === 'customers' && <CustomersTab showRates={isManager} canEdit={isManager} />}
         {activeTab === 'billing' && isManager && <BillingTab />}
       </main>
@@ -232,6 +236,15 @@ function IconCalendar() {
     <svg {...iconProps} aria-hidden>
       <rect x="3" y="5" width="18" height="16" rx="2" />
       <path d="M3 10h18M8 3v4M16 3v4" />
+    </svg>
+  )
+}
+function IconRoute() {
+  return (
+    <svg {...iconProps} aria-hidden>
+      <circle cx="6" cy="18" r="2.5" />
+      <circle cx="18" cy="6" r="2.5" />
+      <path d="M8.5 18H15a3.5 3.5 0 0 0 0-7H9a3.5 3.5 0 0 1 0-7h6.5" />
     </svg>
   )
 }

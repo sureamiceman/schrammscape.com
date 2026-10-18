@@ -108,7 +108,9 @@ function flushSoon() {
   return flushing ? flushing.then(() => flushPending()) : flushPending()
 }
 
-const looksOffline = (message: string) => !navigator.onLine || /fetch|network|load failed/i.test(message)
+// No signal, or a login that has expired / can't be refreshed yet: keep the
+// item and try again later rather than throwing the edit away.
+const shouldRetry = (message: string) => !navigator.onLine || /fetch|network|load failed|jwt|token|auth/i.test(message)
 
 /** Sends one item. Returns null when done, or the database's refusal message. */
 async function send(change: PendingChange): Promise<string | null> {
@@ -145,7 +147,7 @@ export function flushPending(): Promise<FlushResult> {
         refused = await send(change)
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err)
-        if (looksOffline(message)) break // no signal: keep it and everything after it
+        if (shouldRetry(message)) break // keep it and everything after it for next time
         refused = message
       }
       // Remove only if nothing newer was merged in while this was in flight.
