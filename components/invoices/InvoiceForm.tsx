@@ -3,10 +3,13 @@
 // =============================================================================
 // WHAT THIS FILE DOES:
 //   The right-hand panel's "Create New Invoice" form: customer info, a
-//   repeatable list of line items, and notes. On submit, it POSTs to
-//   app/api/invoices/create, which saves the invoice, emails a PDF to
-//   schrammscape@gmail.com, and hands the PDF back here so it can also
-//   be downloaded immediately.
+//   repeatable list of line items, and notes. Use it for routine billing or
+//   one-off (non-routine) work. "Choose a customer" fills in name, address
+//   and email from the customer list; or type them in for someone new.
+//   On submit, it POSTs to app/api/invoices/create, which saves the
+//   invoice, emails a PDF to schrammscape@gmail.com, and hands the PDF back
+//   here. The confirmation screen then offers Share / Print / Download /
+//   Email to customer (components/invoices/InvoiceActions.tsx).
 //
 // DEPENDS ON:
 //   - lib/supabaseClient.ts, to grab the current access token to send
@@ -20,8 +23,16 @@
 
 'use client'
 
-import { useState, type FormEvent } from 'react'
+import { useEffect, useState, type FormEvent } from 'react'
 import { supabase } from '@/lib/supabaseClient'
+import InvoiceActions from './InvoiceActions'
+
+interface CustomerOption {
+  id: string
+  name: string
+  address: string
+  email: string
+}
 
 interface LineInput {
   date: string
@@ -44,12 +55,35 @@ export default function InvoiceForm({
 }) {
   const [customerName, setCustomerName] = useState('')
   const [customerAddress, setCustomerAddress] = useState('')
+  const [customerEmail, setCustomerEmail] = useState('')
+  const [customers, setCustomers] = useState<CustomerOption[]>([])
+  const [pickedId, setPickedId] = useState('')
   const [issueDate, setIssueDate] = useState(todayForInput)
   const [notes, setNotes] = useState('')
   const [lines, setLines] = useState<LineInput[]>([emptyLine()])
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [result, setResult] = useState<{ number: string; pdfBase64: string } | null>(null)
+  const [result, setResult] = useState<{ id: string; number: string; pdfBase64: string } | null>(null)
+
+  useEffect(() => {
+    supabase
+      .from('customers')
+      .select('id, name, address, email')
+      .is('deleted_at', null)
+      .order('name')
+      .then(({ data }) => {
+        if (data) setCustomers(data as CustomerOption[])
+      })
+  }, [])
+
+  const pickCustomer = (id: string) => {
+    setPickedId(id)
+    const c = customers.find((x) => x.id === id)
+    if (!c) return
+    setCustomerName(c.name)
+    setCustomerAddress(c.address)
+    setCustomerEmail(c.email)
+  }
 
   const updateLine = (index: number, patch: Partial<LineInput>) => {
     setLines((prev) => prev.map((l, i) => (i === index ? { ...l, ...patch } : l)))
@@ -66,6 +100,8 @@ export default function InvoiceForm({
   const resetForm = () => {
     setCustomerName('')
     setCustomerAddress('')
+    setCustomerEmail('')
+    setPickedId('')
     setIssueDate(todayForInput())
     setNotes('')
     setLines([emptyLine()])
@@ -97,7 +133,7 @@ export default function InvoiceForm({
       })
       const json = await res.json()
       if (!res.ok) throw new Error(json.error || 'Something went wrong creating the invoice.')
-      setResult({ number: json.number, pdfBase64: json.pdfBase64 })
+      setResult({ id: json.id, number: json.number, pdfBase64: json.pdfBase64 })
       onCreated()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Something went wrong.')
@@ -106,45 +142,31 @@ export default function InvoiceForm({
     }
   }
 
-  const downloadPdf = () => {
-    if (!result) return
-    const byteChars = atob(result.pdfBase64)
-    const byteNumbers = new Array(byteChars.length)
-    for (let i = 0; i < byteChars.length; i++) byteNumbers[i] = byteChars.charCodeAt(i)
-    const blob = new Blob([new Uint8Array(byteNumbers)], { type: 'application/pdf' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `${result.number}.pdf`
-    a.click()
-    URL.revokeObjectURL(url)
-  }
-
   // Confirmation state, shown after a successful create.
   if (result) {
     return (
-      <div className="flex flex-col items-center justify-center h-full gap-4 py-12 text-center">
-        <p className="text-lg font-semibold text-gray-800">Invoice {result.number} created</p>
-        <p className="text-sm text-gray-500">Emailed to schrammscape@gmail.com.</p>
-        <div className="flex gap-3 mt-2">
-          <button
-            onClick={downloadPdf}
-            className="px-4 py-2 rounded-md text-white text-sm font-medium"
-            style={{ backgroundColor: 'var(--hunter)' }}
-          >
-            Download PDF
-          </button>
-          <button
-            onClick={() => {
-              setResult(null)
-              resetForm()
-              onCancel()
-            }}
-            className="px-4 py-2 rounded-md border text-sm text-gray-600"
-          >
-            Done
-          </button>
+      <div className="flex flex-col gap-4 py-4">
+        <div className="text-center">
+          <p className="text-lg font-semibold text-gray-800">Invoice {result.number} created</p>
+          <p className="text-sm text-gray-500">A copy was emailed to schrammscape@gmail.com.</p>
         </div>
+        <InvoiceActions
+          invoiceId={result.id}
+          number={result.number}
+          customerName={customerName}
+          pdfBase64={result.pdfBase64}
+          defaultEmail={customerEmail}
+        />
+        <button
+          onClick={() => {
+            setResult(null)
+            resetForm()
+            onCancel()
+          }}
+          className="px-4 py-2 rounded-md border text-sm text-gray-600"
+        >
+          Done
+        </button>
       </div>
     )
   }
@@ -160,6 +182,22 @@ export default function InvoiceForm({
 
       <div className="grid grid-cols-1 gap-3">
         <label className="text-sm text-gray-600">
+          Choose a customer
+          <select
+            value={pickedId}
+            onChange={(e) => pickCustomer(e.target.value)}
+            className="mt-1 w-full border rounded-md px-3 py-2 text-sm bg-white"
+          >
+            <option value="">— New / one-off customer (type below) —</option>
+            {customers.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name || 'Unnamed'}
+                {c.address ? ` — ${c.address}` : ''}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="text-sm text-gray-600">
           Customer name *
           <input
             required
@@ -173,6 +211,18 @@ export default function InvoiceForm({
           <input
             value={customerAddress}
             onChange={(e) => setCustomerAddress(e.target.value)}
+            className="mt-1 w-full border rounded-md px-3 py-2 text-sm"
+          />
+        </label>
+        <label className="text-sm text-gray-600">
+          Customer email (for emailing the invoice)
+          <input
+            type="email"
+            inputMode="email"
+            autoCapitalize="none"
+            autoCorrect="off"
+            value={customerEmail}
+            onChange={(e) => setCustomerEmail(e.target.value)}
             className="mt-1 w-full border rounded-md px-3 py-2 text-sm"
           />
         </label>

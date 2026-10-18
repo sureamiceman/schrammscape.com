@@ -181,6 +181,7 @@ export async function POST(request: Request) {
 
   return NextResponse.json({
     success: true,
+    id: invoiceRow.id,
     number,
     pdfBase64: pdfBuffer.toString('base64'),
   })
