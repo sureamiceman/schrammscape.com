@@ -10,6 +10,14 @@
 //     - Extra-work note   free-form comment shown on the invoice
 //   plus Undo on a finished job (until it has been invoiced), for mis-taps.
 //
+//   BILLING: each job is either "Invoice" (billed per visit) or
+//   "Subscription" (covered by the customer's monthly plan). It starts from
+//   the customer's plan and can be switched here until the job is invoiced.
+//   A finished subscription job gets "Text completion notice": a prefilled
+//   text to the customer saying what was done and when (no prices; same
+//   wording as the iPhone app's work summary). A finished invoice job shows
+//   "Needs invoice" until it's billed.
+//
 //   This card never talks to Supabase itself: it hands each edit to
 //   `onChange`, and TodayTab saves it through lib/app/pendingChanges.ts.
 // =============================================================================
@@ -27,6 +35,24 @@ const STATUS: Record<string, { label: string; className: string }> = {
 }
 
 const timeFmt = new Intl.DateTimeFormat('en-US', { hour: 'numeric', minute: '2-digit' })
+
+const noticeDayFmt = new Intl.DateTimeFormat('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
+const clock24 = (iso: string) => {
+  const d = new Date(iso)
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
+}
+
+/** The "work completed" text (port of the iPhone app's WorkSummaryBuilder.singleVisit). */
+export function completionNotice(job: WorkRecordRow) {
+  let text = `SchrammScape Lawncare: Completed ${job.job_title || 'your service'} — ${noticeDayFmt.format(new Date(job.scheduled_start))}`
+  if (job.actual_start && job.actual_end) text += `, ${clock24(job.actual_start)}–${clock24(job.actual_end)}`
+  const took = durationLabel(job.actual_start, job.actual_end)
+  if (took) text += ` (${took})`
+  text += '.'
+  for (const extra of job.extra_services) text += `\nAdded on site: ${extra}.`
+  if (job.extra_notes) text += `\nExtra work: ${job.extra_notes}.`
+  return text + '\nThank you!'
+}
 
 function durationLabel(start: string | null, end: string | null) {
   if (!start || !end) return null
@@ -56,6 +82,8 @@ export default function JobCard({
   const [customJob, setCustomJob] = useState('')
   const [comment, setComment] = useState(job.extra_notes)
   const s = STATUS[job.status] ?? STATUS.scheduled
+  const billing = job.billing ?? 'invoice'
+  const phoneDigits = job.phone.replace(/[^\d+]/g, '')
   const open = job.status === 'scheduled' || job.status === 'inProgress'
 
   const togglePanel = (p: Panel) => {
@@ -224,6 +252,49 @@ export default function JobCard({
           </button>
         </>
       )}
+      {!job.invoice_number && (
+        <div className="flex items-center gap-2 mt-3 text-xs">
+          <span className="text-gray-500">Billing:</span>
+          {(['invoice', 'subscription'] as const).map((b) => (
+            <button
+              key={b}
+              onClick={() => b !== billing && onChange({ billing: b })}
+              aria-pressed={b === billing}
+              className="rounded-full border px-3 py-1"
+              style={
+                b === billing
+                  ? { backgroundColor: 'var(--hunter)', borderColor: 'var(--hunter)', color: 'white' }
+                  : { color: '#4b5563' }
+              }
+            >
+              {b === 'invoice' ? 'Invoice' : 'Subscription'}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {job.status === 'completed' && billing === 'subscription' && (
+        <div className="mt-3 rounded-md bg-gray-50 p-3 text-sm">
+          {job.notice_sent_at && (
+            <p className="text-xs text-green-700 mb-2">
+              ✓ Completion notice opened in Messages {new Date(job.notice_sent_at).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
+            </p>
+          )}
+          {phoneDigits ? (
+            <a
+              href={`sms:${phoneDigits}?&body=${encodeURIComponent(completionNotice(job))}`}
+              onClick={() => onChange({ notice_sent_at: new Date().toISOString() })}
+              className="block text-center rounded-md py-2 font-medium text-white"
+              style={{ backgroundColor: 'var(--hunter)' }}
+            >
+              {job.notice_sent_at ? 'Text completion notice again' : 'Text completion notice'}
+            </a>
+          ) : (
+            <p className="text-xs text-amber-700">No phone number on this job, so no notice can be texted.</p>
+          )}
+        </div>
+      )}
+
       {job.status === 'completed' && (
         <div className="flex items-center justify-between mt-3 text-sm">
           <span className="text-green-700 font-medium">
@@ -232,9 +303,12 @@ export default function JobCard({
           {job.invoice_number ? (
             <span className="text-xs text-gray-500">Invoiced #{job.invoice_number}</span>
           ) : (
-            <button onClick={undo} className="text-xs text-gray-500 underline">
-              Undo
-            </button>
+            <span className="flex items-center gap-3">
+              {billing === 'invoice' && <span className="text-xs font-medium text-amber-700">Needs invoice</span>}
+              <button onClick={undo} className="text-xs text-gray-500 underline">
+                Undo
+              </button>
+            </span>
           )}
         </div>
       )}

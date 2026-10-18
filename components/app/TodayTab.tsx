@@ -51,10 +51,14 @@ export interface WorkRecordRow {
   event_identifier: string | null
   latitude: number | null
   longitude: number | null
+  /** 'invoice' or 'subscription'; null on older jobs, which means invoice. */
+  billing: 'invoice' | 'subscription' | null
+  /** When the "work completed" text was sent (subscription jobs). */
+  notice_sent_at: string | null
 }
 
 const JOB_COLUMNS =
-  'id, customer_name, address, job_title, phone, notes, scheduled_start, scheduled_end, actual_start, actual_end, status, assigned_to, extra_services, extra_notes, invoice_number, event_identifier, latitude, longitude'
+  'id, customer_name, address, job_title, phone, notes, scheduled_start, scheduled_end, actual_start, actual_end, status, assigned_to, extra_services, extra_notes, invoice_number, event_identifier, latitude, longitude, billing, notice_sent_at'
 
 /**
  * Lays edits that haven't reached the database yet over freshly loaded rows,
@@ -63,7 +67,15 @@ const JOB_COLUMNS =
 function withPending(rows: WorkRecordRow[], dayStart: Date, dayEnd: Date): WorkRecordRow[] {
   const merged = rows.map((r) => ({ ...r, ...(pendingPatch('work_records', r.id) as Partial<WorkRecordRow>) }))
   const ids = new Set(rows.map((r) => r.id))
-  const blank = { actual_start: null, actual_end: null, extra_services: [], extra_notes: '', invoice_number: null }
+  const blank = {
+    actual_start: null,
+    actual_end: null,
+    extra_services: [],
+    extra_notes: '',
+    invoice_number: null,
+    billing: null,
+    notice_sent_at: null,
+  }
   const added = (pendingInserts('work_records').map((r) => ({ ...blank, ...r })) as unknown as WorkRecordRow[]).filter((r) => {
     const t = new Date(r.scheduled_start).getTime()
     return !ids.has(r.id) && t >= dayStart.getTime() && t < dayEnd.getTime()

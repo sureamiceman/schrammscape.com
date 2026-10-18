@@ -13,11 +13,14 @@
 // SECURITY NOTE:
 //   Reads the invoice as the signed-in caller (lib/invoiceServer.ts), so
 //   only admin/manager accounts can send one, and only invoices they can see.
+//   On top of that the caller needs "Allow user to send invoices?" switched
+//   on in their profile (admins always can); checked here on the server, so
+//   hiding the button isn't the only protection.
 // =============================================================================
 
 import { NextResponse } from 'next/server'
 import { Resend } from 'resend'
-import { BUSINESS_EMAIL, EMAIL_FROM, loadInvoice, renderInvoicePdf, signedInClient } from '@/lib/invoiceServer'
+import { BUSINESS_EMAIL, EMAIL_FROM, canSendInvoices, loadInvoice, renderInvoicePdf, signedInClient } from '@/lib/invoiceServer'
 
 export const runtime = 'nodejs'
 
@@ -26,6 +29,10 @@ const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 export async function POST(request: Request) {
   const caller = await signedInClient(request)
   if (!caller) return NextResponse.json({ error: 'Your session has expired — please sign in again.' }, { status: 401 })
+
+  if (!(await canSendInvoices(caller.db, caller.user))) {
+    return NextResponse.json({ error: "You don't have permission to send invoices. Ask an admin to turn it on." }, { status: 403 })
+  }
 
   let body: { id?: string; to?: string }
   try {

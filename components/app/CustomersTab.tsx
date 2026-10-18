@@ -40,10 +40,12 @@ export interface CustomerRow {
   latitude: number | null
   longitude: number | null
   geocode_status: string
+  /** 'per_visit' = invoice each visit; 'subscription' = monthly plan, visits get a completion notice. */
+  billing_plan: 'per_visit' | 'subscription'
 }
 
 const CUSTOMER_COLUMNS =
-  'id, name, address, job_title, duration_label, day_of_week, mower, details, phone, email, height, default_rate, visit_interval_weeks, sort_order, latitude, longitude, geocode_status'
+  'id, name, address, job_title, duration_label, day_of_week, mower, details, phone, email, height, default_rate, visit_interval_weeks, sort_order, latitude, longitude, geocode_status, billing_plan'
 
 /** Lays saves that haven't reached the database yet over loaded rows (and adds new, unsent customers). */
 function withPending(rows: CustomerRow[]): CustomerRow[] {
@@ -188,6 +190,7 @@ export default function CustomersTab({ showRates, canEdit }: { showRates: boolea
                 c.visit_interval_weeks > 1 ? `every ${c.visit_interval_weeks} wks` : '',
                 c.mower && `mower: ${c.mower}`,
                 c.height && `height: ${c.height}`,
+                c.billing_plan === 'subscription' && 'monthly subscription',
               ].filter(Boolean)
               return (
                 <li key={c.id} className="bg-white rounded-lg border p-3">

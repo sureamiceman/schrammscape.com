@@ -46,6 +46,15 @@ export interface InvoiceRecord {
   lines: { date?: string | null; details: string; amount: number }[]
 }
 
+/**
+ * Whether the caller may send invoices to customers: admins always; others
+ * only when an admin has turned on "Allow user to send invoices?" for them.
+ */
+export async function canSendInvoices(db: SupabaseClient, user: User) {
+  const { data } = await db.from('profiles').select('role, can_send_invoices').eq('user_id', user.id).maybeSingle()
+  return data?.role === 'admin' || data?.can_send_invoices === true
+}
+
 /** Loads one invoice the caller is allowed to see, or null. */
 export async function loadInvoice(db: SupabaseClient, id: string): Promise<InvoiceRecord | null> {
   const { data } = await db

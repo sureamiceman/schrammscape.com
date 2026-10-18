@@ -5,7 +5,8 @@
 //   The frame of the SchrammScape crew app at schrammscape.com/app:
 //     - sign-in gate (same Supabase accounts as the iPhone app)
 //     - looks up the signed-in person's role (admin / manager / crew)
-//     - top bar with name + sign out, "offline" notice
+//     - top bar with name + sign out, "offline" notice; admins also get
+//       "Team" (user profiles and the send-invoices permission, TeamScreen)
 //     - sends edits saved while offline once signal is back
 //       (lib/app/pendingChanges.ts)
 //     - bottom tab bar: Today, Schedule, Customers, Billing
@@ -32,6 +33,7 @@ import LoginForm from '@/components/invoices/LoginForm'
 import TodayTab from './TodayTab'
 import CustomersTab from './CustomersTab'
 import ScheduleTab from './ScheduleTab'
+import TeamScreen from './TeamScreen'
 import BillingTab from './BillingTab'
 
 export type Role = 'admin' | 'manager' | 'crew'
@@ -39,6 +41,8 @@ export interface Profile {
   user_id: string
   display_name: string
   role: Role
+  /** "Allow user to send invoices?" — set by an admin on the Team screen. */
+  can_send_invoices: boolean
 }
 
 type TabId = 'today' | 'schedule' | 'customers' | 'billing'
@@ -74,6 +78,7 @@ export default function AppShell() {
   const [authLoading, setAuthLoading] = useState(true)
   const [profiles, setProfiles] = useState<Profile[]>([])
   const [tab, setTab] = useState<TabId>('today')
+  const [showTeam, setShowTeam] = useState(false)
   const online = useOnline()
   const pending = usePendingCount()
 
@@ -101,7 +106,7 @@ export default function AppShell() {
     if (!session) return
     supabase
       .from('profiles')
-      .select('user_id, display_name, role')
+      .select('user_id, display_name, role, can_send_invoices')
       .then(({ data }) => {
         if (data) setProfiles(data as Profile[])
       })
@@ -109,6 +114,7 @@ export default function AppShell() {
 
   const me = profiles.find((p) => p.user_id === session?.user.id)
   const isManager = me?.role === 'admin' || me?.role === 'manager'
+  const isAdmin = me?.role === 'admin'
   const tabs: { id: TabId; label: string; icon: JSX.Element }[] = [
     { id: 'today', label: 'Today', icon: <IconCalendar /> },
     ...(isManager ? [{ id: 'schedule' as TabId, label: 'Schedule', icon: <IconRoute /> }] : []),
@@ -168,6 +174,11 @@ export default function AppShell() {
           </div>
           <div className="flex items-center gap-3 text-sm">
             <span className="opacity-90 truncate max-w-[9rem]">{me?.display_name || session.user.email}</span>
+            {isAdmin && (
+              <button onClick={() => setShowTeam(true)} className="underline opacity-90">
+                Team
+              </button>
+            )}
             <button onClick={signOut} className="underline opacity-90">
               Sign out
             </button>
@@ -193,6 +204,14 @@ export default function AppShell() {
         {activeTab === 'customers' && <CustomersTab showRates={isManager} canEdit={isManager} />}
         {activeTab === 'billing' && isManager && <BillingTab />}
       </main>
+
+      {showTeam && isAdmin && (
+        <TeamScreen
+          profiles={profiles}
+          onChanged={(updated) => setProfiles((prev) => prev.map((p) => (p.user_id === updated.user_id ? updated : p)))}
+          onClose={() => setShowTeam(false)}
+        />
+      )}
 
       <nav
         className="fixed bottom-0 inset-x-0 z-20 bg-white border-t"

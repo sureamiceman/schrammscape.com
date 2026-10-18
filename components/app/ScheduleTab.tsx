@@ -64,7 +64,7 @@ interface Stop {
 }
 
 const CUSTOMER_COLUMNS =
-  'id, name, address, job_title, duration_label, day_of_week, mower, details, phone, email, height, default_rate, visit_interval_weeks, sort_order, latitude, longitude, geocode_status'
+  'id, name, address, job_title, duration_label, day_of_week, mower, details, phone, email, height, default_rate, visit_interval_weeks, sort_order, latitude, longitude, geocode_status, billing_plan'
 
 const dayFmt = new Intl.DateTimeFormat('en-US', { weekday: 'long', month: 'long', day: 'numeric' })
 const toDateInput = (d: Date) =>
@@ -279,6 +279,7 @@ export default function ScheduleTab({ profiles, myId }: { profiles: Profile[]; m
           latitude: c.latitude,
           longitude: c.longitude,
           assigned_to: assignee || null,
+          billing: c.billing_plan === 'subscription' ? 'subscription' : 'invoice',
           event_identifier: null, // see the note at the top of this file
         },
         { insert: true }

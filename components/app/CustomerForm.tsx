@@ -47,6 +47,7 @@ export const BLANK_CUSTOMER: Omit<CustomerRow, 'id' | 'sort_order'> = {
   latitude: null,
   longitude: null,
   geocode_status: '',
+  billing_plan: 'per_visit',
 }
 
 export default function CustomerForm({
@@ -168,6 +169,20 @@ export default function CustomerForm({
               <input className={input} value={rateText} onChange={(e) => setRateText(e.target.value)} inputMode="decimal" placeholder="0.00" />
             </Field>
           )}
+        </Section>
+
+        <Section title="Billing">
+          <Field label="How this customer is billed">
+            <select
+              className={input}
+              value={draft.billing_plan}
+              onChange={(e) => set('billing_plan', e.target.value as CustomerRow['billing_plan'])}
+            >
+              <option value="per_visit">Per-visit invoice</option>
+              <option value="subscription">Monthly subscription (visits get a completion notice)</option>
+            </select>
+          </Field>
+          <p className="text-xs text-gray-500">New jobs start with this setting; it can be changed on any single job.</p>
         </Section>
 
         <Section title="Schedule">

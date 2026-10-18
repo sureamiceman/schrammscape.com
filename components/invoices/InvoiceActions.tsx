@@ -15,6 +15,11 @@
 //   The PDF is fetched as soon as this panel opens, so tapping Share opens
 //   the sheet immediately (iPhones only allow sharing straight from a tap).
 //
+//   PERMISSION: Share and Email only appear for admins and for people an
+//   admin has given "Allow user to send invoices?" (Team screen). Others
+//   can still print and download. The email endpoint checks the same
+//   permission on the server.
+//
 // DEPENDS ON:
 //   app/api/invoices/pdf (PDF of a saved invoice), app/api/invoices/email
 // USED BY:
@@ -36,6 +41,20 @@ async function accessToken() {
 function base64ToBlob(b64: string) {
   const bytes = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0))
   return new Blob([bytes], { type: 'application/pdf' })
+}
+
+/** Whether the signed-in person may send invoices (admins always). Checked once per page load. */
+let canSendCache: Promise<boolean> | null = null
+function fetchCanSend() {
+  canSendCache ??= (async () => {
+    const { data: auth } = await supabase.auth.getSession()
+    const id = auth.session?.user.id
+    if (!id) return false
+    const { data } = await supabase.from('profiles').select('role, can_send_invoices').eq('user_id', id).maybeSingle()
+    return data?.role === 'admin' || data?.can_send_invoices === true
+  })()
+  canSendCache.catch(() => (canSendCache = null))
+  return canSendCache
 }
 
 const isPhoneOrTablet = () =>
@@ -61,7 +80,12 @@ export default function InvoiceActions({
   const [email, setEmail] = useState(defaultEmail ?? '')
   const [sending, setSending] = useState(false)
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null)
+  const [canSend, setCanSend] = useState(false)
   const fileName = `${number}.pdf`
+
+  useEffect(() => {
+    fetchCanSend().then(setCanSend, () => setCanSend(false))
+  }, [])
 
   // Fetch the PDF up front (see the note at the top).
   useEffect(() => {
@@ -128,8 +152,14 @@ export default function InvoiceActions({
 
   const print = () => {
     if (!pdf) return
-    if (isPhoneOrTablet()) return share() // the share sheet has Print / AirPrint
     const url = URL.createObjectURL(pdf)
+    if (isPhoneOrTablet()) {
+      // Phones print from the share sheet (Print / AirPrint). Without send
+      // permission, open the PDF in the viewer instead, which also has Print.
+      if (canSend) return share()
+      window.open(url, '_blank')
+      return
+    }
     const frame = document.createElement('iframe')
     frame.style.position = 'fixed'
     frame.style.width = '0'
@@ -180,9 +210,11 @@ export default function InvoiceActions({
       {loadError && <p className="text-sm text-red-600">{loadError}</p>}
       {!ready && !loadError && <p className="text-xs text-gray-500">Preparing PDF…</p>}
       <div className="flex gap-2">
-        <button onClick={share} disabled={!ready} className={`${button} text-white border-transparent`} style={{ backgroundColor: 'var(--hunter)' }}>
-          Share
-        </button>
+        {canSend && (
+          <button onClick={share} disabled={!ready} className={`${button} text-white border-transparent`} style={{ backgroundColor: 'var(--hunter)' }}>
+            Share
+          </button>
+        )}
         <button onClick={print} disabled={!ready} className={button} style={{ color: 'var(--hunter)' }}>
           Print
         </button>
@@ -190,32 +222,37 @@ export default function InvoiceActions({
           Download
         </button>
       </div>
-      <form
-        className="flex gap-2"
-        onSubmit={(e) => {
-          e.preventDefault()
-          sendEmail()
-        }}
-      >
-        <input
-          type="email"
-          inputMode="email"
-          autoCapitalize="none"
-          autoCorrect="off"
-          placeholder="Customer email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          className="flex-1 min-w-0 rounded-md border px-3 py-2 text-base bg-white"
-        />
-        <button
-          type="submit"
-          disabled={sending || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())}
-          className="shrink-0 rounded-md border px-3 text-sm font-medium disabled:opacity-40"
-          style={{ color: 'var(--hunter)' }}
+      {!canSend && (
+        <p className="text-xs text-gray-500">Sending invoices to customers is turned off for your account. An admin can turn it on in Team.</p>
+      )}
+      {canSend && (
+        <form
+          className="flex gap-2"
+          onSubmit={(e) => {
+            e.preventDefault()
+            sendEmail()
+          }}
         >
-          {sending ? 'Sending…' : 'Email'}
-        </button>
-      </form>
+          <input
+            type="email"
+            inputMode="email"
+            autoCapitalize="none"
+            autoCorrect="off"
+            placeholder="Customer email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            className="flex-1 min-w-0 rounded-md border px-3 py-2 text-base bg-white"
+          />
+          <button
+            type="submit"
+            disabled={sending || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())}
+            className="shrink-0 rounded-md border px-3 text-sm font-medium disabled:opacity-40"
+            style={{ color: 'var(--hunter)' }}
+          >
+            {sending ? 'Sending…' : 'Email'}
+          </button>
+        </form>
+      )}
       {message && <p className={`text-sm ${message.ok ? 'text-green-700' : 'text-red-600'}`}>{message.text}</p>}
     </div>
   )
